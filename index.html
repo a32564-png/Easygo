@@ -1,0 +1,1902 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>我的旅遊回憶箱 (V84 - 介面優化版)</title>
+    
+    <meta name="theme-color" content="#0ea5e9">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" href="icon.png" type="image/png">
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f0f9ff; -webkit-tap-highlight-color: transparent; user-select: none; overscroll-behavior-y: none; } 
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(14, 165, 233, 0.1); box-shadow: 0 4px 20px rgba(14, 165, 233, 0.1); }
+        .bg-theme-main { background-color: #0ea5e9; } .text-theme-main { color: #0ea5e9; } .border-theme-main { border-color: #0ea5e9; }
+        .active-scale:active { transform: scale(0.97); transition: 0.1s; }
+        .trip-card { transition: all 0.2s; }
+        .trip-card:active { transform: scale(0.98); }
+        .item-card-gradient { background: linear-gradient(135deg, #e0f2fe 0%, #ffffff 40%); }
+        .image-preview-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,1.0); z-index: 100; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .bounce { animation: bounce 1s infinite; }
+        @keyframes bounce { 
+            0%, 100% { transform: translateY(-15%); animation-timing-function: cubic-bezier(0.8, 0, 1, 1); } 
+            50% { transform: translateY(0); animation-timing-function: cubic-bezier(0, 0, 0.2, 1); } 
+        }
+        .fade-out-bg { transition: opacity 0.4s ease-out, visibility 0.4s; opacity: 1; visibility: visible; }
+        .fade-out-bg.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-presets="react,env">
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        // --- Icons ---
+        const Icons = {
+            Plus: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>,
+            MapPin: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>,
+            CheckCircle: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+            Circle: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/></svg>,
+            Trash2: ({className}) => <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>,
+            X: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 18 18"/></svg>,
+            Edit3: ({className}) => <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>,
+            Upload: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>,
+            ExternalLink: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>,
+            Settings: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
+            Check: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+            Lock: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+            Unlock: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>,
+            Export: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>,
+            ArrowLeft: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>,
+            Calendar: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>,
+            Users: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+            Suitcase: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
+            ChevronUp: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>,
+            ChevronDown: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>,
+            ShoppingBag: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>,
+            Camera: ({className}) => <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>,
+            ArrowLeftRight: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7 3 7"/><path d="m18 10 3-3-3-3"/><path d="M3 17h18"/><path d="m6 14-3 3 3 3"/></svg>,
+            ArrowUpDown: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/><path d="M12 4v16"/></svg>,
+            Undo: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>,
+            ShoppingCart: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>,
+            Grid: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
+            List: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>,
+            Banknote: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>,
+            CheckSquare: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        };
+
+        // --- Firebase Config ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyC5VDGujMlr4O1STyjx7-1UlXnHccjv_aE",
+            authDomain: "koreaeasygo-ce4f3.firebaseapp.com",
+            projectId: "koreaeasygo-ce4f3",
+            storageBucket: "koreaeasygo-ce4f3.firebasestorage.app",
+            messagingSenderId: "861052933660",
+            appId: "1:861052933660:web:ce3db5315a8d63b7fcf1d9",
+            measurementId: "G-1E7BG4D5P8"
+        };
+
+        if (!firebase.apps.length) {
+            try { firebase.initializeApp(firebaseConfig); } catch (e) { console.error(e); }
+        }
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+        const auth = firebase.auth();
+
+        const COUNTRIES = { 
+            'KR': {name: '韓國', currency: 'KRW', rate: 0.024}, 
+            'JP': {name: '日本', currency: 'JPY', rate: 0.21}, 
+            'TW': {name: '台灣', currency: 'TWD', rate: 1}, 
+            'TH': {name: '泰國', currency: 'THB', rate: 0.88}, 
+            'CN': {name: '中國', currency: 'CNY', rate: 4.4}, 
+            'US': {name: '美國', currency: 'USD', rate: 31}, 
+            'EU': {name: '歐洲', currency: 'EUR', rate: 34},
+            'SG': {name: '新加坡', currency: 'SGD', rate: 23.5},
+            'VN': {name: '越南', currency: 'VND', rate: 0.0013},
+            'MY': {name: '馬來西亞', currency: 'MYR', rate: 7.2},
+            'HK': {name: '香港', currency: 'HKD', rate: 4.1}
+        };
+
+        const ANIMAL_OPTIONS = [
+            { id: 'bear', name: '熊熊', emoji: '🐻', color: 'bg-amber-600', border: 'border-amber-600' },
+            { id: 'rabbit', name: '兔兔', emoji: '🐰', color: 'bg-pink-500', border: 'border-pink-500' },
+            { id: 'chick', name: '小雞', emoji: '🐥', color: 'bg-yellow-400', border: 'border-yellow-400' },
+            { id: 'frog', name: '青蛙', emoji: '🐸', color: 'bg-green-500', border: 'border-green-500' },
+            { id: 'cat', name: '貓貓', emoji: '🐱', color: 'bg-orange-400', border: 'border-orange-400' },
+            { id: 'dog', name: '狗狗', emoji: '🐶', color: 'bg-sky-400', border: 'border-sky-400' },
+            { id: 'pig', name: '豬豬', emoji: '🐷', color: 'bg-rose-300', border: 'border-rose-300' },
+            { id: 'koala', name: '無尾熊', emoji: '🐨', color: 'bg-slate-400', border: 'border-slate-400' },
+        ];
+
+        const TRIP_ICONS = [
+            '🐻', '🐰', '🐥', '🐱', '🐶', '🦊', '🐼', '🐨', 
+            '🐭', '🐷', '🐵', '🐸', '🐯', '🐹', '🐮', '🐺', 
+            '🦉', '🦁', '🐡', '🦀', '🦞', '🦫', '🦥', '🦦', 
+            '🐑', '🦘', '🐫', '🦧', '🐬', '🐳', '🦈', '🦝', '🦔'
+        ];
+        
+        const CategoryIcon = ({ type }) => { 
+            switch(type) { 
+                case 'food': return <span className="text-2xl">🍛</span>; 
+                case 'sight': return <span className="text-2xl">🏯</span>; 
+                case 'shop': return <span className="text-2xl">🛍</span>; 
+                case 'transport': return <span className="text-2xl">🚌</span>; 
+                case 'hotel': return <span className="text-2xl">🏢</span>; 
+                case 'checklist': return <span className="text-2xl">✨️</span>; 
+                case 'loot': return <span className="text-2xl">🎁</span>;
+                default: return <span className="text-2xl">🕒</span>; 
+            }
+        };
+        
+        const TransportIcon = ({ type }) => {
+            switch(type) {
+                case 'plane': return <span>✈️</span>;
+                case 'train': return <span>🚆</span>;
+                case 'bus': return <span>🚌</span>;
+                case 'ferry': return <span>⛴️</span>;
+                default: return <span>🚌</span>;
+            }
+        };
+
+        const getDayInfo = (startDateStr, dayNum) => {
+            if (!startDateStr) return { date: '', weekDay: '' };
+            const date = new Date(startDateStr);
+            date.setDate(date.getDate() + (dayNum - 1));
+            const weekDays = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+            return { date: date.toLocaleDateString('zh-TW', {month:'2-digit', day:'2-digit'}), weekDay: weekDays[date.getDay()] };
+        };
+
+        const calculateLength = (str) => {
+            let len = 0;
+            for (let i = 0; i < str.length; i++) {
+                if (str.charCodeAt(i) > 127 || str.charCodeAt(i) === 94) {
+                    len += 2;
+                } else {
+                    len += 1;
+                }
+            }
+            return len;
+        };
+
+        const ZoomableImage = ({ src }) => {
+            const [scale, setScale] = useState(1);
+            const [translate, setTranslate] = useState({ x: 0, y: 0 });
+            const containerRef = useRef(null);
+            const initialDistance = useRef(0);
+            const initialScale = useRef(1);
+            const initialTranslate = useRef({ x: 0, y: 0 });
+            const startTouch = useRef({ x: 0, y: 0 });
+
+            const getDistance = (touches) => {
+                return Math.hypot(
+                    touches[0].pageX - touches[1].pageX,
+                    touches[0].pageY - touches[1].pageY
+                );
+            };
+
+            const handleTouchStart = (e) => {
+                if (e.touches.length === 2) {
+                    initialDistance.current = getDistance(e.touches);
+                    initialScale.current = scale;
+                    const midX = (e.touches[0].pageX + e.touches[1].pageX) / 2;
+                    const midY = (e.touches[0].pageY + e.touches[1].pageY) / 2;
+                    startTouch.current = { x: midX, y: midY };
+                    initialTranslate.current = { ...translate };
+                } else if (e.touches.length === 1 && scale > 1) {
+                    startTouch.current = { x: e.touches[0].pageX, y: e.touches[0].pageY };
+                    initialTranslate.current = { ...translate };
+                }
+            };
+
+            const handleTouchMove = (e) => {
+                if (e.touches.length === 2) {
+                    const currentDistance = getDistance(e.touches);
+                    const rawRatio = currentDistance / initialDistance.current;
+                    const dampenedRatio = 1 + (rawRatio - 1) * 0.6;
+                    const newScale = Math.max(1, Math.min(3, initialScale.current * dampenedRatio));
+                    setScale(newScale);
+
+                    const midX = (e.touches[0].pageX + e.touches[1].pageX) / 2;
+                    const midY = (e.touches[0].pageY + e.touches[1].pageY) / 2;
+                    const dx = midX - startTouch.current.x;
+                    const dy = midY - startTouch.current.y;
+
+                    setTranslate({
+                        x: initialTranslate.current.x + dx,
+                        y: initialTranslate.current.y + dy
+                    });
+
+                    if (newScale === 1) setTranslate({ x: 0, y: 0 });
+                } else if (e.touches.length === 1 && scale > 1) {
+                    e.preventDefault();
+                    const dx = e.touches[0].pageX - startTouch.current.x;
+                    const dy = e.touches[0].pageY - startTouch.current.y;
+                    setTranslate({
+                        x: initialTranslate.current.x + dx,
+                        y: initialTranslate.current.y + dy
+                    });
+                }
+            };
+
+            return (
+                <div 
+                    ref={containerRef}
+                    className="w-full h-full flex items-center justify-center overflow-hidden touch-none"
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onClick={(e) => e.stopPropagation()} 
+                >
+                    <img 
+                        src={src} 
+                        className="max-w-full max-h-full object-contain"
+                        style={{ transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})` }}
+                        alt="Preview"
+                    />
+                </div>
+            );
+        };
+
+
+        // --- Modals ---
+        
+        const TripModal = ({ trip, onClose, onSave, onDelete }) => { 
+            const [form, setForm] = useState({ name: '', country: 'KR', startDate: '', endDate: '', icon: '🐻', customRate: '' }); 
+            const [saving, setSaving] = useState(false); 
+            
+            useEffect(() => { 
+                if(trip) setForm({ ...trip, customRate: trip.customRate || '' }); 
+            }, [trip]); 
+            
+            const handleConfirm = async () => {
+                setSaving(true);
+                try { 
+                    const dataToSave = { ...form };
+                    if(dataToSave.customRate) dataToSave.customRate = parseFloat(dataToSave.customRate);
+                    await onSave(dataToSave); 
+                    onClose(); 
+                } catch(e) { alert("儲存失敗"); }
+                setSaving(false);
+            };
+
+            return ( 
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}> 
+                    <div className="bg-white w-full max-w-md rounded-t-3xl shadow-2xl p-6 space-y-5" onClick={e => e.stopPropagation()}> 
+                        <div className="flex justify-between items-center pb-3 border-b border-stone-100"> 
+                            <h2 className="font-bold text-lg text-theme-main">{trip ? '設定' : '新增'}</h2> 
+                            <button onClick={onClose} className="text-lg">❌</button> 
+                        </div> 
+                        
+                        <input type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full p-3 bg-stone-50 rounded-xl border outline-none" placeholder="名稱"/> 
+                        
+                        <div className="space-y-3">
+                            <div>
+                                <label className="text-xs text-stone-500 font-bold ml-1 mb-1 block">選擇國家</label>
+                                <select value={form.country} onChange={e => setForm({...form, country: e.target.value})} className="w-full p-3 bg-stone-50 rounded-xl border outline-none text-stone-700">
+                                    {Object.entries(COUNTRIES).map(([k,v])=><option key={k} value={k}>{v.name}</option>)}
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label className="text-xs text-stone-500 font-bold ml-1 mb-1 block">自訂匯率 (選填，預設 {COUNTRIES[form.country].rate})</label>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-10 h-10 flex items-center justify-center bg-yellow-100 rounded-lg text-yellow-600 text-xl">💱</div>
+                                    <input type="number" step="0.0001" placeholder={`預設: ${COUNTRIES[form.country].rate}`} value={form.customRate} onChange={e => setForm({...form, customRate: e.target.value})} className="flex-1 p-3 bg-stone-50 rounded-xl border outline-none"/>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs text-stone-500 font-bold ml-1 mb-1 block">選擇代表圖示 (可左右滑動)</label>
+                                <div className="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1">
+                                    {TRIP_ICONS.map(i => (
+                                        <button key={i} onClick={() => setForm({...form, icon: i})} className={`flex-shrink-0 w-12 h-12 text-2xl rounded-xl flex items-center justify-center transition-all ${form.icon === i ? 'bg-sky-100 border-2 border-sky-300 scale-110 shadow-md' : 'bg-stone-50 border border-stone-100 grayscale opacity-70'}`}>
+                                            {i}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <input type="date" value={form.startDate} onChange={e=>setForm({...form,startDate:e.target.value})} className="flex-1 p-3 bg-stone-50 rounded-xl"/>
+                            <input type="date" min={form.startDate} value={form.endDate} onChange={e=>setForm({...form,endDate:e.target.value})} className="flex-1 p-3 bg-stone-50 rounded-xl"/>
+                        </div> 
+                        
+                        <div className="flex gap-2">
+                            {trip && <button onClick={()=>onDelete(trip.id)} className="p-3 bg-red-50 text-red-500 rounded-xl"><Icons.Trash2/></button>}
+                            <button onClick={handleConfirm} disabled={saving} className={`flex-1 p-3 text-white rounded-xl font-bold ${saving ? 'bg-stone-400' : 'bg-theme-main'}`}>{saving ? '⏳ 儲存中...' : '儲存'}</button>
+                        </div>
+                    </div> 
+                </div> 
+            ); 
+        };
+
+        const ItemModal = ({ item, day, country, tripId, members, onClose, onSave, onDelete, forcePayerSelect, isLocked }) => {
+            const [form, setForm] = useState({ day, time: '', title: '', category: 'sight', location: '', cost: '', currency: COUNTRIES[country].currency, notes: '', memo: '', payerIds: [], sharedInvolvedIds: [], fileUrl: '', images: [], checklist: [], transportType: 'plane', transportNo: '', departureTime: '', arrivalTime: '', departureLoc: '', arrivalLoc: '', checkInTime: '' });
+            const [uploading, setUploading] = useState(false);
+            const [saving, setSaving] = useState(false);
+            const fileInputRef = useRef(null);
+            
+            useEffect(() => { 
+                if(item) setForm({...form, ...item}); 
+            }, [item]);
+
+            const togglePayer = (pid) => { const current = form.payerIds || []; setForm({...form, payerIds: current.includes(pid) ? current.filter(id=>id!==pid) : [...current, pid]}); };
+            
+            const toggleShared = (pid) => { 
+                const current = form.sharedInvolvedIds && form.sharedInvolvedIds.length > 0 ? form.sharedInvolvedIds : members.map(m=>m.id);
+                const newShared = current.includes(pid) ? current.filter(id => id !== pid) : [...current, pid];
+                setForm({...form, sharedInvolvedIds: newShared});
+            };
+
+            const isShared = (pid) => {
+                if (!form.sharedInvolvedIds || form.sharedInvolvedIds.length === 0) return true;
+                return form.sharedInvolvedIds.includes(pid);
+            };
+
+            const handleFileUpload = async (e) => { 
+                const file = e.target.files[0]; 
+                if(!file) return; 
+                setUploading(true); 
+                try { 
+                    const ref = firebase.storage().ref().child(`trips/${tripId}/${Date.now()}_${file.name}`); 
+                    await ref.put(file); 
+                    const url = await ref.getDownloadURL(); 
+                    setForm(p => ({ ...p, fileUrl: url })); 
+                } catch (e) { alert("上傳失敗"); } 
+                setUploading(false); 
+            };
+            const handleTimeInput = (e, field) => { let v = e.target.value.replace(/[^0-9]/g, ''); if (v.length > 4) v = v.slice(0, 4); if (v.length > 2) v = v.slice(0, 2) + ':' + v.slice(2); setForm(prev => ({ ...prev, [field]: v })); };
+
+            const handleConfirm = async () => {
+                if (forcePayerSelect && (!form.payerIds || form.payerIds.length === 0)) {
+                    alert("請選擇是誰買的！");
+                    return;
+                }
+                setSaving(true);
+                let finalForm = {...form};
+                if(form.category === 'loot') {
+                     finalForm.sharedInvolvedIds = form.payerIds; 
+                }
+
+                try { await onSave(finalForm); onClose(); } catch(e) { alert("儲存失敗"); }
+                setSaving(false);
+            };
+
+            return (
+                <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+                    <div className="bg-[#FDFBF7] w-full max-w-md rounded-t-3xl shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center border-b pb-2"><h2 className="font-bold text-lg text-theme-main">{item?'編輯':'新增'}</h2><button onClick={onClose} className="text-lg">❌</button></div>
+                        
+                        {form.category !== 'loot' && (
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+                                {['sight','food','shop','transport','hotel','checklist'].map(c => (
+                                    <button key={c} onClick={() => setForm({...form, category: c})} className={`px-3 py-1.5 rounded-full border text-xs font-bold whitespace-nowrap flex items-center gap-1 ${form.category === c ? 'bg-theme-main text-white' : 'bg-white text-stone-500'}`}>
+                                        {c==='sight'?'🏯 景點':c==='food'?'🍛 美食':c==='shop'?'🛍 逛街':c==='transport'?'🚌 交通':c==='hotel'?'🏢 住宿':'✨️ 備忘'}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        {form.category === 'checklist' ? (
+                            <div className="space-y-2"><input type="text" placeholder="清單標題" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} className="w-full p-3 bg-white border rounded-xl font-bold"/>{form.checklist.map((check, i) => (<div key={i} className="flex gap-2 items-center"><input type="text" value={check.text} onChange={e=>{const list=[...form.checklist]; list[i].text=e.target.value; setForm({...form, checklist:list})}} className="flex-1 p-2 border rounded-lg"/><button onClick={()=>{const list=[...form.checklist]; list.splice(i,1); setForm({...form, checklist:list})}} className="text-red-400 shrink-0"><Icons.Trash2/></button></div>))}<button onClick={()=>setForm({...form, checklist:[...form.checklist, {text:'', checked:false}]})} className="text-xs text-theme-main font-bold">+ 新增項目</button></div>
+                        ) : (
+                            <>
+                                <div className="flex gap-4">
+                                    {form.category !== 'loot' && form.category !== 'transport' && form.category !== 'hotel' && (<div className="w-1/3"><label className="text-[10px] font-bold text-stone-400 uppercase">時間</label><input type="tel" value={form.time} onChange={e => handleTimeInput(e, 'time')} placeholder="10:00" className="w-full mt-1 p-3 bg-white border border-stone-200 rounded-xl font-bold text-center outline-none focus:border-theme-main"/></div>)}
+                                    <div className="flex-1"><label className="text-[10px] font-bold text-stone-400 uppercase">{form.category==='transport'?'航班/車次': form.category==='hotel'?'飯店名稱':'名稱'}</label><input type="text" value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full mt-1 p-3 bg-white border border-stone-200 rounded-xl font-medium outline-none focus:border-theme-main"/></div>
+                                </div>
+                                
+                                {form.category === 'transport' && (<div className="bg-stone-50 p-3 rounded-xl space-y-2"><div className="flex gap-2"><select value={form.transportType} onChange={e=>setForm({...form, transportType:e.target.value})} className="p-2 rounded-lg w-full"><option value="plane">✈️ 飛機</option><option value="train">🚆 火車</option><option value="bus">🚌 巴士</option><option value="ferry">⛴️ 渡輪</option></select></div><div className="flex gap-2 items-center"><span className="text-xs font-bold w-8 text-stone-400">出發</span><input type="tel" value={form.departureTime} onChange={e=>handleTimeInput(e, 'departureTime')} placeholder="20:00" className="w-24 p-2 rounded-lg"/><input placeholder="出發地" value={form.departureLoc} onChange={e=>setForm({...form, departureLoc:e.target.value})} className="flex-1 p-2 rounded-lg"/></div><div className="flex gap-2 items-center"><span className="text-xs font-bold w-8 text-stone-400">抵達</span><input type="tel" value={form.arrivalTime} onChange={e=>handleTimeInput(e, 'arrivalTime')} placeholder="23:30" className="w-24 p-2 rounded-lg"/><input placeholder="目的地" value={form.arrivalLoc} onChange={e=>setForm({...form, arrivalLoc:e.target.value})} className="flex-1 p-2 rounded-lg"/></div></div>)}
+                                {form.category === 'hotel' && (<div><label className="text-[10px] font-bold text-stone-400 uppercase">入住時間</label><input type="tel" value={form.checkInTime} onChange={e=>handleTimeInput(e, 'checkInTime')} placeholder="15:00" className="w-full p-3 bg-white border rounded-xl"/></div>)}
+                                
+                                <div><label className="text-[10px] font-bold text-stone-400 uppercase">備註</label><textarea placeholder={form.category === 'loot' ? "買了什麼口味..." : "例如: 發車時間..."} value={form.memo} onChange={e => setForm({...form, memo: e.target.value})} className="w-full mt-1 p-3 bg-white border border-stone-200 rounded-xl outline-none focus:border-theme-main resize-none h-40"></textarea></div>
+                                
+                                {form.category !== 'loot' && <div><label className="text-[10px] font-bold text-stone-400 uppercase">地點 (網址自動變連結)</label><input type="text" placeholder="Google Maps..." value={form.location} onChange={e => setForm({...form, location: e.target.value})} className="w-full mt-1 p-3 bg-white border border-stone-200 rounded-xl outline-none focus:border-theme-main" /></div>}
+                                
+                                <div className="bg-stone-50 p-3 rounded-xl border border-stone-100 space-y-3 overflow-hidden">
+                                    <div className="flex gap-2 w-full">
+                                        <select value={form.currency} onChange={e=>setForm({...form, currency:e.target.value})} className="w-1/3 p-2 rounded-xl bg-white border text-sm"><option value={COUNTRIES[country].currency}>{COUNTRIES[country].currency}</option><option value="TWD">TWD</option></select>
+                                        <input type="number" placeholder="0" value={form.cost} onChange={e => setForm({...form, cost: e.target.value})} className="flex-1 min-w-0 p-2 bg-white border rounded-xl text-right font-bold"/>
+                                    </div>
+                                    {(form.category !== 'loot' || forcePayerSelect) && (
+                                        <>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-stone-400 uppercase mb-1 block">誰付錢？(可多選)</label>
+                                                <div className="flex gap-2 overflow-x-auto py-1">{members.length > 0 ? members.map(m => (<button key={m.id} onClick={() => togglePayer(m.id)} className={`flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full border text-xl transition-all ${form.payerIds?.includes(m.id) ? `${m.color} text-white border-transparent shadow-md scale-110` : 'bg-white border-stone-200 grayscale opacity-60'}`}>{m.emoji}</button>)) : <span className="text-xs text-stone-400">請先至右上角新增參與者</span>}</div>
+                                            </div>
+                                            {form.category !== 'loot' && (
+                                                <div className="pt-2 border-t border-stone-200 mt-2">
+                                                    <label className="text-[10px] font-bold text-stone-400 uppercase mb-1 block">分攤給誰？(受益人，預設全選)</label>
+                                                    <div className="flex gap-2 overflow-x-auto py-1">{members.length > 0 ? members.map(m => (<button key={m.id} onClick={() => toggleShared(m.id)} className={`flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full border text-sm transition-all ${isShared(m.id) ? `bg-white border-theme-main text-theme-main shadow-sm` : 'bg-stone-100 border-transparent text-stone-300 opacity-60'}`}>{m.emoji}</button>)) : null}</div>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                        
+                        <div>
+                            <label className="text-[10px] font-bold text-stone-400 uppercase">照片</label>
+                            <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*" />
+                            <div className="flex gap-2 mb-2 overflow-x-auto">
+                                {form.fileUrl && (
+                                    <div className="w-full h-32 bg-stone-100 rounded-lg overflow-hidden border border-stone-200 relative">
+                                        <img src={form.fileUrl} className="w-full h-full object-cover" />
+                                        <button onClick={()=>setForm({...form, fileUrl:''})} className="absolute top-2 right-2 bg-black/50 text-white px-2 rounded text-xs">移除</button>
+                                    </div>
+                                )}
+                            </div>
+                            <button onClick={() => fileInputRef.current.click()} disabled={uploading} className={`w-full p-3 border border-dashed rounded-xl flex items-center justify-center gap-2 ${uploading ? 'text-gray-400 bg-gray-50' : 'text-stone-400'}`}>
+                                <Icons.Camera className="w-4 h-4" /> {uploading ? '⏳ 上傳中...' : '選擇照片'}
+                            </button>
+                        </div>
+
+                        {!isLocked && (
+                            <div className="flex gap-3 pt-4 border-t border-stone-100">
+                                {item && onDelete && <button onClick={() => onDelete(item.id)} className="p-4 bg-red-50 text-red-400 rounded-xl"><Icons.Trash2/></button>}
+                                <button onClick={handleConfirm} disabled={uploading || saving} className={`flex-1 text-white font-bold py-4 rounded-xl shadow-lg ${saving ? 'bg-stone-400' : 'bg-theme-main'}`}>{saving ? '⏳ 儲存中...' : '確認'}</button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const ShoppingItemModal = ({ item, country, tripId, members, onClose, onSave, onDelete, isLocked }) => {
+            const [form, setForm] = useState({ text: '', cost: '', currency: COUNTRIES[country].currency, memo: '', location: '', fileUrl: '', payerId: '', type: 'normal', sharedInvolvedIds: [] });
+            const [uploading, setUploading] = useState(false);
+            const [saving, setSaving] = useState(false);
+            const fileInputRef = useRef(null);
+
+            useEffect(() => { if(item) setForm({...item, sharedInvolvedIds: item.sharedInvolvedIds || []}); }, [item]);
+
+            const toggleShared = (pid) => { 
+                const current = form.sharedInvolvedIds && form.sharedInvolvedIds.length > 0 ? form.sharedInvolvedIds : members.map(m=>m.id);
+                const newShared = current.includes(pid) ? current.filter(id => id !== pid) : [...current, pid];
+                setForm({...form, sharedInvolvedIds: newShared});
+            };
+            const isShared = (pid) => (!form.sharedInvolvedIds || form.sharedInvolvedIds.length === 0) ? true : form.sharedInvolvedIds.includes(pid);
+
+            const handleFileUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setUploading(true);
+                try {
+                    const ref = firebase.storage().ref().child(`trips/${tripId}/${Date.now()}_shop_${file.name}`);
+                    await ref.put(file);
+                    const url = await ref.getDownloadURL();
+                    setForm(p => ({ ...p, fileUrl: url }));
+                } catch (e) { alert("上傳失敗"); }
+                setUploading(false);
+            };
+
+            const handleConfirm = async () => {
+                if (form.type === 'split' && !form.payerId) {
+                    alert("分帳模式必須選擇一位先付錢的人！");
+                    return;
+                }
+                setSaving(true);
+                try { await onSave(form); onClose(); } catch (e) { alert("儲存失敗"); }
+                setSaving(false);
+            };
+
+            return (
+                <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+                    <div className="bg-[#FDFBF7] w-full max-w-md rounded-t-3xl shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center border-b pb-2">
+                            <h2 className="font-bold text-lg text-theme-main">{item ? '編輯購物項目' : '新增購物項目'}</h2>
+                            <button onClick={onClose} className="text-lg">❌</button>
+                        </div>
+
+                        <div><label className="text-[10px] font-bold text-stone-400 uppercase">品名</label><input type="text" value={form.text} onChange={e => setForm({ ...form, text: e.target.value })} className="w-full mt-1 p-3 bg-white border border-stone-200 rounded-xl font-medium outline-none focus:border-theme-main" placeholder="想買什麼..." /></div>
+
+                        <div className="bg-stone-50 p-3 rounded-xl border border-stone-100 space-y-3">
+                            <div className="flex gap-2 w-full">
+                                <select value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value })} className="w-1/3 p-2 rounded-xl bg-white border text-sm"><option value={COUNTRIES[country].currency}>{COUNTRIES[country].currency}</option><option value="TWD">TWD</option></select>
+                                <input type="number" placeholder="預估金額" value={form.cost} onChange={e => setForm({ ...form, cost: e.target.value })} className="flex-1 min-w-0 p-2 bg-white border rounded-xl text-right font-bold" />
+                            </div>
+                            
+                            {form.type === 'split' && (
+                                <>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-emerald-500 uppercase mb-1 block">此單需分帳，是誰先付錢？</label>
+                                        <div className="flex gap-2 overflow-x-auto py-1">
+                                            {members.length > 0 ? members.map(m => (
+                                                <button key={m.id} onClick={() => setForm({ ...form, payerId: m.id })} className={`flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full border text-xl transition-all ${form.payerId === m.id ? `${m.color} text-white border-transparent shadow-md scale-110` : 'bg-white border-stone-200 grayscale opacity-60'}`}>{m.emoji}</button>
+                                            )) : <span className="text-xs text-stone-400">請先新增成員</span>}
+                                        </div>
+                                    </div>
+                                    <div className="pt-2 border-t border-stone-200">
+                                        <label className="text-[10px] font-bold text-stone-400 uppercase mb-1 block">分攤給誰？(受益人，預設全選)</label>
+                                        <div className="flex gap-2 overflow-x-auto py-1">{members.length > 0 ? members.map(m => (<button key={m.id} onClick={() => toggleShared(m.id)} className={`flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full border text-sm transition-all ${isShared(m.id) ? `bg-white border-theme-main text-theme-main shadow-sm` : 'bg-stone-100 border-transparent text-stone-300 opacity-60'}`}>{m.emoji}</button>)) : null}</div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        <div><label className="text-[10px] font-bold text-stone-400 uppercase">備註</label><textarea placeholder="顏色、尺寸..." value={form.memo} onChange={e => setForm({ ...form, memo: e.target.value })} className="w-full mt-1 p-3 bg-white border border-stone-200 rounded-xl outline-none focus:border-theme-main resize-none h-40"></textarea></div>
+                        <div><label className="text-[10px] font-bold text-stone-400 uppercase">購買地點 (網址)</label><input type="text" placeholder="Google Maps Link..." value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} className="w-full mt-1 p-3 bg-white border border-stone-200 rounded-xl outline-none focus:border-theme-main" /></div>
+
+                        <div>
+                            <label className="text-[10px] font-bold text-stone-400 uppercase">參考照片</label>
+                            <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*" />
+                            {form.fileUrl && (<div className="w-full h-32 bg-stone-100 rounded-lg overflow-hidden border border-stone-200 relative mb-2"><img src={form.fileUrl} className="w-full h-full object-cover" /><button onClick={() => setForm({ ...form, fileUrl: '' })} className="absolute top-2 right-2 bg-black/50 text-white px-2 rounded text-xs">移除</button></div>)}
+                            <button onClick={() => fileInputRef.current.click()} disabled={uploading} className={`w-full p-3 border border-dashed rounded-xl flex items-center justify-center gap-2 ${uploading ? 'text-gray-400 bg-gray-50' : 'text-stone-400'}`}><Icons.Camera className="w-4 h-4" /> {uploading ? '⏳ 上傳中...' : '選擇照片'}
+                            </button>
+                        </div>
+
+                        {!isLocked && (
+                            <div className="flex gap-3 pt-4 border-t border-stone-100">
+                                {item && onDelete && <button onClick={() => onDelete(item.id, true)} className="p-4 bg-red-50 text-red-400 rounded-xl"><Icons.Trash2/></button>}
+                                <button onClick={handleConfirm} disabled={uploading || saving} className={`flex-1 text-white font-bold py-4 rounded-xl shadow-lg ${saving ? 'bg-stone-400' : 'bg-theme-main'}`}>{saving ? '⏳ 儲存中...' : '確認'}</button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const ShoppingCheckModal = ({ onClose, onSelect }) => {
+            return (
+                <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+                    <div className="bg-white w-full max-w-xs p-6 rounded-3xl shadow-2xl space-y-4" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-center font-bold text-lg text-stone-800">購物確認</h3>
+                        <p className="text-center text-sm text-stone-500 mb-4">這筆消費要如何處理？</p>
+                        
+                        <button onClick={() => onSelect('loot')} className="w-full py-3 bg-pink-500 text-white rounded-xl font-bold shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2">
+                            🎁 登記為戰利品
+                            <span className="text-[10px] bg-pink-600 px-1 rounded opacity-80">個人</span>
+                        </button>
+                        
+                        <button onClick={() => onSelect('split')} className="w-full py-3 bg-emerald-400 text-white rounded-xl font-bold shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2">
+                            💰 此單需分帳
+                            <span className="text-[10px] bg-emerald-500 px-1 rounded opacity-80">公費</span>
+                        </button>
+                        
+                        <button onClick={() => onSelect('simple')} className="w-full py-3 bg-stone-100 text-stone-500 rounded-xl font-bold active:scale-95 transition-transform">
+                            ✔️ 純紀錄已買 (歸檔)
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const ShoppingListModal = ({ shoppingList, members, country, tripId, onClose, onAdd, onEdit, onDelete, onCheck, onTogglePaid, setPreviewImage, onRestore, isLocked }) => {
+            const [isGalleryMode, setIsGalleryMode] = useState(false); 
+
+            const sortedList = useMemo(() => {
+                const normal = shoppingList.filter(i => !i.isBought && i.type === 'normal').sort((a,b) => b.createdAt - a.createdAt);
+                const split = shoppingList.filter(i => i.type === 'split').sort((a,b) => (a.isPaid===b.isPaid)?0:a.isPaid?1:-1); 
+                const done = shoppingList.filter(i => i.isBought && i.type !== 'split').sort((a,b) => b.createdAt - a.createdAt);
+                return [...normal, ...split, ...done];
+            }, [shoppingList]);
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+                    <div className="bg-[#FDFBF7] w-full max-w-md rounded-t-3xl shadow-2xl p-6 h-[93vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center pb-4 border-b">
+                            <h2 className="font-bold text-xl text-theme-main flex items-center gap-2">購物清單</h2>
+                            <div className="flex gap-3">
+                                <button onClick={() => setIsGalleryMode(!isGalleryMode)} className="text-stone-400 hover:text-theme-main transition-colors">
+                                    {isGalleryMode ? <Icons.List /> : <Icons.Grid />}
+                                </button>
+                                <button onClick={onClose} className="text-lg">❌</button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto mt-4 p-1">
+                            {sortedList.length > 0 ? (
+                                isGalleryMode ? (
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {sortedList.map(item => {
+                                            const isSplit = item.type === 'split';
+                                            const isBought = item.isBought;
+                                            const hasLinkedLoot = !!item.linkedLootId;
+                                            let borderColor = 'border-sky-400';
+                                            
+                                            if (isBought) {
+                                                if (hasLinkedLoot) borderColor = 'border-pink-500'; 
+                                                else if (isSplit) borderColor = 'border-emerald-500'; 
+                                                else borderColor = 'border-stone-400'; 
+                                            }
+
+                                            return (
+                                                <div key={item.id} className={`relative aspect-square rounded-xl overflow-hidden border-2 ${borderColor} ${isBought ? 'grayscale bg-stone-100' : 'bg-white'}`}>
+                                                    <div className="w-full h-full flex items-center justify-center cursor-pointer" onClick={() => { if(item.fileUrl) setPreviewImage(item.fileUrl) }}>
+                                                        {item.fileUrl ? (
+                                                            <img src={item.fileUrl} className="w-full h-full object-cover" alt="item" />
+                                                        ) : (
+                                                            <span className="text-xs text-center font-bold text-stone-400 px-1 break-all line-clamp-3">{item.text}</span>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="absolute top-1 right-1 z-10" onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (isLocked) return alert("行程已鎖定");
+                                                        (isBought || isSplit) ? onRestore(item) : onCheck(item);
+                                                    }}>
+                                                        <div className={`w-5 h-5 rounded-full border-2 bg-white flex items-center justify-center shadow-sm ${isBought ? (hasLinkedLoot ? 'border-pink-500 text-pink-500' : (isSplit ? 'border-emerald-500 text-emerald-500' : 'border-stone-400 text-blue-800')) : 'border-sky-300 text-transparent'}`}>
+                                                            <Icons.Check />
+                                                        </div>
+                                                    </div>
+
+                                                    {isSplit && (
+                                                        <div className="absolute bottom-1 left-1 w-3 h-3 bg-emerald-500 rounded-full border border-white shadow-sm"></div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {sortedList.map(item => {
+                                            const isSplit = item.type === 'split';
+                                            const isBought = item.isBought;
+                                            const payer = isSplit ? members.find(m => m.id === item.payerId) : null;
+                                            
+                                            let cardClass = "bg-sky-50 border-sky-100"; 
+                                            if (isSplit) cardClass = "bg-[#ECFDF5] border-[#6EE7B7]"; 
+                                            if (isBought && !isSplit) cardClass = "bg-stone-50 border-stone-100 opacity-60 grayscale"; 
+
+                                            return (
+                                                <div key={item.id} className={`p-3 rounded-2xl border shadow-sm flex items-center gap-2 relative transition-all ${cardClass}`}>
+                                                    <div className="w-[10%] flex justify-center shrink-0" onClick={() => {
+                                                        if (isLocked) return alert("行程已鎖定");
+                                                        (isBought || isSplit) ? onRestore(item) : null
+                                                    }}>
+                                                        {isSplit ? (
+                                                            <div className="text-emerald-500 font-bold text-xs flex flex-col items-center cursor-pointer">
+                                                                <span>分帳</span>
+                                                                <span>中</span>
+                                                            </div>
+                                                        ) : (
+                                                            <button onClick={(e) => { 
+                                                                e.stopPropagation(); 
+                                                                if (isLocked) return alert("行程已鎖定");
+                                                                (isBought) ? onRestore(item) : onCheck(item); 
+                                                            }} className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${isBought ? 'bg-stone-300 border-stone-300 text-white cursor-pointer' : 'bg-white border-theme-main text-transparent'}`}>
+                                                                <Icons.Check />
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="w-16 h-16 rounded-xl overflow-hidden bg-white border border-stone-200 shrink-0 cursor-pointer" onClick={(e) => { e.stopPropagation(); if(item.fileUrl) setPreviewImage(item.fileUrl); }}>
+                                                        {item.fileUrl ? (
+                                                            <img src={item.fileUrl} className="w-full h-full object-cover" alt="item" />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-stone-200 text-2xl"><Icons.ShoppingBag/></div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="flex-1 min-w-0 flex flex-col justify-center h-full cursor-pointer" onClick={() => onEdit(item)}>
+                                                        <h3 className={`font-bold text-stone-800 truncate ${isBought && !isSplit ? 'line-through text-stone-400' : ''}`}>{item.text}</h3>
+                                                        <p className={`text-xs text-stone-500 font-medium mt-0.5 ${(isSplit && item.isPaid) ? 'line-through text-stone-400' : ''}`}>
+                                                            {item.currency} {Number(item.cost).toLocaleString()}
+                                                        </p>
+                                                        {item.memo && <p className="text-[10px] text-stone-400 truncate mt-1">{item.memo}</p>}
+                                                    </div>
+
+                                                    <div className="w-[10%] flex flex-col items-center gap-2 justify-center shrink-0">
+                                                        {isSplit && payer && (
+                                                            <>
+                                                                <div className={`w-6 h-6 ${payer.color} rounded-full text-white flex items-center justify-center text-[10px] shadow-sm`}>{payer.emoji}</div>
+                                                                <button onClick={() => {
+                                                                    if (isLocked) return alert("行程已鎖定");
+                                                                    onTogglePaid(item);
+                                                                }} className={`w-6 h-6 rounded-full border flex items-center justify-center ${item.isPaid ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white border-emerald-300 text-emerald-100'}`}>
+                                                                    {item.isPaid ? <Icons.Check/> : <Icons.Circle/>}
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="flex flex-col gap-2 shrink-0">
+                                                        {item.location && (
+                                                            <a href={item.location} target="_blank" className="p-1.5 bg-white rounded-full text-blue-400 shadow-sm border border-blue-50 active:scale-95" onClick={e=>e.stopPropagation()}>
+                                                                <Icons.MapPin />
+                                                            </a>
+                                                        )}
+                                                        {!isLocked && (
+                                                            <button onClick={(e) => { e.stopPropagation(); onDelete(item.id, false); }} className="p-1.5 bg-white rounded-full text-red-300 shadow-sm border border-red-50 hover:text-red-500 active:scale-95">
+                                                                <Icons.Trash2 className="w-4 h-4"/>
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )
+                            ) : (
+                                <div className="flex flex-col items-center justify-center py-20 opacity-40">
+                                    <Icons.ShoppingBag />
+                                    <p className="mt-2 text-sm font-bold">清單是空的</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {!isLocked && (
+                            <button onClick={onAdd} className="mt-4 w-full py-3 bg-theme-main text-white rounded-xl font-bold shadow-lg shadow-sky-200 active:scale-95 transition-transform flex items-center justify-center gap-2">
+                                <Icons.Plus /> 新增購物項目
+                            </button>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const LockModal = ({ isLocked, onClose, onConfirm }) => { const [pwd, setPwd] = useState(''); return ( <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}> <div className="bg-white w-64 p-6 rounded-2xl space-y-4 text-center" onClick={e=>e.stopPropagation()}> <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center text-2xl ${isLocked?'bg-red-100 text-red-500':'bg-sky-100 text-theme-main'}`}>{isLocked?<Icons.Lock/>:<Icons.Unlock/>}</div> <h3 className="font-bold text-lg text-theme-main">{isLocked?'解鎖行程':'鎖定行程'}</h3> <p className="text-xs text-stone-500">{isLocked?'輸入密碼以編輯':'設定密碼以防止誤觸'}</p> <input type="tel" maxLength="4" className="w-full text-center text-2xl tracking-widest border-b-2 border-stone-200 focus:border-theme-main outline-none py-2" value={pwd} onChange={e=>setPwd(e.target.value)}/> <button onClick={()=>onConfirm(pwd)} className="w-full bg-theme-main text-white py-2 rounded-xl font-bold">確認</button> </div> </div> ); };
+        
+        const ExportModal = ({ itinerary, tripName, onClose }) => {
+            const text = useMemo(() => {
+                let res = `【${tripName} 行程表】\n`;
+                const days = {};
+                itinerary.filter(i => i.category !== 'loot').forEach(i => {
+                    if (!days[i.day]) days[i.day] = [];
+                    days[i.day].push(i);
+                });
+
+                Object.keys(days).sort((a, b) => a - b).forEach(d => {
+                    res += `\n📅 Day ${d}\n`;
+                    days[d].sort((a, b) => (a.customOrder || 0) - (b.customOrder || 0)).forEach(item => {
+                        if (item.category === 'transport') {
+                            res += `${item.departureTime} ${item.title} (${item.departureLoc || ''} ➔ ${item.arrivalLoc || ''})\n`;
+                        } else {
+                            res += `${item.time} ${item.title}\n`;
+                        }
+                    });
+                });
+                return res;
+            }, [itinerary]);
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+                    <div className="bg-white w-full max-w-md p-6 rounded-2xl m-4" onClick={e => e.stopPropagation()}>
+                        <h3 className="font-bold mb-2 text-theme-main">匯出純文字</h3>
+                        <textarea className="w-full h-64 p-3 border rounded-xl text-sm" readOnly value={text}></textarea>
+                        <div className="flex gap-2 mt-4">
+                            <button onClick={() => { navigator.clipboard.writeText(text); alert("已複製！") }} className="flex-1 bg-theme-main text-white py-3 rounded-xl font-bold">複製內容</button>
+                            <button onClick={onClose} className="p-3 bg-stone-100 rounded-xl">關閉</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        const MoveDayModal = ({ days, currentDay, count, onClose, onMove }) => { const [targetDay, setTargetDay] = useState(currentDay); return ( <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}> <div className="bg-white w-full max-w-xs p-5 rounded-2xl space-y-4" onClick={e=>e.stopPropagation()}> <h2 className="text-center font-bold">移動/複製 {count} 個行程</h2> <div className="flex flex-wrap gap-2 justify-center">{days.map(d=><button key={d} onClick={()=>setTargetDay(d)} className={`px-3 py-1 rounded-full ${targetDay===d?'bg-theme-main text-white':'bg-stone-100'}`}>Day {d}</button>)}</div> <div className="flex gap-2"> <button onClick={()=>onMove(targetDay, 'move')} className="flex-1 py-2 bg-theme-main text-white rounded-lg">移動</button> <button onClick={()=>onMove(targetDay, 'copy')} className="flex-1 py-2 bg-purple-500 text-white rounded-lg">複製</button> </div> </div> </div> ); };
+        
+        const MemberModal = ({ members, onClose, onAdd, onDelete, isLocked }) => { const [name, setName] = useState(''); const [selectedAnimal, setSelectedAnimal] = useState(null); const usedAnimals = members.map(m => m.animalId); const handleSubmit = () => { if (!selectedAnimal || !name) return alert("請選擇動物並輸入暱稱"); const len = calculateLength(name); if (len > 10) return alert("暱稱過長"); onAdd({ animalId: selectedAnimal.id, emoji: selectedAnimal.emoji, color: selectedAnimal.color, name }); setName(''); setSelectedAnimal(null); }; return ( <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}> <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-4 m-4" onClick={e => e.stopPropagation()}> <div className="flex justify-between items-center pb-2 border-b"><h2 className="font-bold text-lg text-theme-main">管理參與者</h2><button onClick={onClose} className="text-lg">❌</button></div> 
+        {!isLocked && (
+            <>
+                <div className="text-xs text-stone-500 font-bold uppercase">步驟 1：選擇動物</div> <div className="grid grid-cols-4 gap-3">{ANIMAL_OPTIONS.map(animal => { const isUsed = usedAnimals.includes(animal.id); return (<button key={animal.id} disabled={isUsed} onClick={() => setSelectedAnimal(animal)} className={`aspect-square rounded-full flex items-center justify-center text-2xl border-4 transition-all ${isUsed ? 'bg-stone-200 border-stone-200 grayscale cursor-not-allowed' : selectedAnimal?.id === animal.id ? `${animal.color} border-white shadow-lg scale-110` : `bg-white ${animal.border}`}`}>{animal.emoji}</button>); })}</div> <div className="text-xs text-stone-500 font-bold uppercase mt-2">步驟 2：輸入暱稱</div> <div className="flex gap-2"><input type="text" placeholder="暱稱" value={name} onChange={e => setName(e.target.value)} className="flex-1 p-3 bg-stone-50 rounded-xl"/><button onClick={handleSubmit} className="bg-theme-main text-white px-6 rounded-xl font-bold shadow">確定</button></div>
+            </>
+        )}
+        <div className="border-t pt-4 mt-2"><p className="text-xs text-stone-400 mb-2">已加入的夥伴</p><div className="space-y-2 max-h-56 overflow-y-auto">{members.map(m => (<div key={m.id} className="flex items-center justify-between bg-stone-50 p-2 rounded-lg"><div className="flex items-center gap-2"><div className={`w-8 h-8 ${m.color} rounded-full flex items-center justify-center text-white text-sm`}>{m.emoji}</div><span className="font-bold text-stone-700">{m.name}</span></div>{!isLocked && <button onClick={() => onDelete(m.id)} className="text-stone-400 hover:text-red-500"><Icons.Trash2/></button>}</div>))}{members.length === 0 && <p className="text-center text-stone-300 text-sm">還沒有人加入喔</p>}</div></div> </div> </div> ); };
+        
+        const LuggageModal = ({ luggageList, members, onClose, onAdd, onToggle, onDelete, isLocked }) => { const [text, setText] = useState(''); return ( <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}> <div className="bg-white w-full max-w-md rounded-t-3xl shadow-2xl p-6 space-y-4 h-[93vh] flex flex-col" onClick={e => e.stopPropagation()}> <div className="flex justify-between items-center pb-2 border-b"><h2 className="font-bold text-lg flex items-center gap-2 text-theme-main">行李清單</h2><button onClick={onClose} className="text-lg">❌</button></div> <div className="flex-1 overflow-y-auto space-y-4 p-1">{luggageList.map(item => (<div key={item.id} className="bg-stone-50 p-3 rounded-xl border border-stone-100 relative group"><div className="font-bold text-stone-700 mb-2 pr-8">{item.text}</div>{!isLocked && <button onClick={() => onDelete(item.id)} className="absolute top-2 right-2 text-stone-300 hover:text-red-400 p-2"><Icons.Trash2/></button>}<div className="flex gap-3 flex-wrap">{members.map(m => { const isChecked = item.checks?.[m.id]; return (<div key={m.id} onClick={() => !isLocked && onToggle(item.id, m.id, isChecked)} className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center cursor-pointer transition-all ${isChecked ? 'bg-stone-200 border-stone-200 grayscale opacity-50' : `${m.color} border-transparent text-white shadow-sm`}`}>{isChecked ? <Icons.Check/> : m.emoji}</div>); })}{members.length === 0 && <span className="text-xs text-stone-400">請先新增參與者</span>}</div></div>))}{luggageList.length === 0 && <div className="text-center text-stone-300 py-10">還沒有項目，快來新增吧！</div>}</div> 
+        {!isLocked && <div className="flex gap-2 border-t pt-3"><input type="text" placeholder="新增檢查項目 (例如: 護照)" value={text} onChange={e => setText(e.target.value)} className="flex-1 p-3 bg-stone-100 rounded-xl outline-none"/><button onClick={() => { onAdd(text); setText(''); }} className="bg-theme-main text-white px-4 rounded-xl font-bold"><Icons.Plus/></button></div>} </div> </div> ); };
+        
+        const LootModal = ({ members, activeMemberId, setActiveMemberId, lootList, onClose, onAdd, onEdit, onDelete, setPreviewImage, isLocked, rate }) => {
+            return (
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+                    <div className="bg-[#FDFBF7] w-full max-w-md rounded-t-3xl shadow-2xl p-6 h-[93vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center pb-4 border-b">
+                            <h2 className="font-bold text-xl text-theme-main flex items-center gap-2"><Icons.ShoppingBag/> 戰利品專區</h2>
+                            <button onClick={onClose} className="text-lg">❌</button>
+                        </div>
+                        <div className="flex gap-3 overflow-x-auto py-2 no-scrollbar">
+                            {members.map(m => (
+                                <button key={m.id} onClick={() => setActiveMemberId(m.id)} className={`flex flex-col items-center gap-1 transition-all ${activeMemberId === m.id ? 'opacity-100 scale-110' : 'opacity-50 grayscale'}`}>
+                                    <div className={`w-12 h-12 ${m.color} rounded-full text-white flex items-center justify-center text-xl shadow-md border-2 border-white shrink-0`}>{m.emoji}</div>
+                                    <span className="text-[10px] font-bold text-stone-500">{m.name}</span>
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex-1 overflow-y-auto space-y-4 mt-2 p-1">
+                            {lootList.length > 0 ? lootList.map(item => (
+                                <div key={item.id} className="bg-white p-4 rounded-3xl shadow-sm border border-stone-100 relative mb-4">
+                                    {item.fileUrl && (
+                                        <div className="w-full aspect-square rounded-2xl overflow-hidden mb-3 border border-stone-100 shadow-inner" onClick={() => setPreviewImage(item.fileUrl)}>
+                                            <img src={item.fileUrl} className="w-full h-full object-cover" alt="Loot" />
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between items-start mb-1">
+                                        <h3 className="font-bold text-stone-800 text-lg">{item.title}</h3>
+                                        <div className="flex gap-2 shrink-0">
+                                            {!isLocked && (
+                                                <>
+                                                    <button onClick={() => onEdit(item)} className="w-8 h-8 bg-stone-50 rounded-full text-stone-400 flex items-center justify-center hover:text-blue-500"><Icons.Edit3 className="w-4 h-4"/></button>
+                                                    <button onClick={() => onDelete(item.id, false)} className="w-8 h-8 bg-stone-50 rounded-full text-stone-400 flex items-center justify-center hover:text-red-500"><Icons.Trash2 className="w-4 h-4"/></button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-baseline gap-2 mb-2">
+                                        <span className="text-2xl font-extrabold text-pink-500">{item.currency} {Number(item.cost).toLocaleString()}</span>
+                                        {item.currency !== 'TWD' && <span className="text-xs text-stone-400 font-medium">≈ TWD {Math.round(item.cost * rate).toLocaleString()}</span>}
+                                    </div>
+                                    {item.memo && (
+                                        <p className="text-sm text-stone-600 bg-stone-50 p-3 rounded-xl leading-relaxed">
+                                            {item.memo}
+                                        </p>
+                                    )}
+                                </div>
+                            )) : (
+                                <div className="flex flex-col items-center justify-center py-20 opacity-40">
+                                    <Icons.ShoppingBag />
+                                    <p className="mt-2 text-sm font-bold">還沒有買東西喔</p>
+                                </div>
+                            )}
+                        </div>
+                        {!isLocked && (
+                            <button onClick={onAdd} disabled={!activeMemberId} className={`mt-4 w-full py-3 bg-pink-500 text-white rounded-xl font-bold shadow-lg shadow-pink-200 active:scale-95 transition-transform flex items-center justify-center gap-2 ${!activeMemberId ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                <Icons.Plus className="w-5 h-5"/> 新增戰利品
+                            </button>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const AccountingModal = ({ itinerary, shoppingList, currency, onClose, members, onEditItem, rate, onTogglePaid, accountingMember, setAccountingMember, isLocked, handleBatchSettle, onRateChange }) => {
+            const [mode, setMode] = useState('overview'); 
+            
+            const stats = useMemo(() => {
+                const res = {}; 
+                members.forEach(m => res[m.id] = {totals: {}, total: 0, paidTotal: 0, pendingTotal: 0, pendingForeign: 0, pendingTWD: 0, details: []});
+                let totalPendingForeign = 0; let totalPendingTWD = 0;
+
+                const processItem = (item, isShopping = false) => {
+                    const cost = Number(item.cost)||0; if(cost===0) return;
+                    const payers = isShopping ? (item.payerId ? [item.payerId] : []) : (item.payerIds || []);
+
+                    payers.forEach(pid => {
+                        if(res[pid]) {
+                            const myShare = cost / payers.length; 
+                            res[pid].total += myShare;
+                            const curr = item.currency || currency;
+                            if(!res[pid].totals[curr]) res[pid].totals[curr] = 0;
+                            res[pid].totals[curr] += myShare;
+                            res[pid].details.push({...item, _isShopping: isShopping});
+                            
+                            if (item.category !== 'loot') {
+                                if (!item.isPaid) {
+                                    res[pid].pendingTotal += myShare;
+                                    if (item.currency === 'TWD') { 
+                                        res[pid].pendingTWD += myShare; 
+                                        totalPendingTWD += myShare; 
+                                    } else { 
+                                        res[pid].pendingForeign += myShare; 
+                                        totalPendingForeign += myShare; 
+                                    }
+                                } else { 
+                                    res[pid].paidTotal += myShare; 
+                                }
+                            }
+                        }
+                    });
+                };
+
+                itinerary.forEach(i => processItem(i));
+                shoppingList.forEach(s => {
+                    if (s.type === 'split') processItem(s, true);
+                });
+
+                return {res, totalPendingForeign, totalPendingTWD};
+            }, [itinerary, shoppingList, members, currency]);
+
+            // Settlement Logic V84 (UI Tweaks)
+            const settlementStats = useMemo(() => {
+                const data = {};
+                members.forEach(m => data[m.id] = { history: 0, paid_net: 0, shared_net: 0 });
+
+                const processSettlement = (item, isShopping = false) => {
+                    const cost = Number(item.cost) || 0;
+                    if (cost === 0) return;
+                    
+                    let costInTWD = cost;
+                    if (item.currency !== 'TWD') {
+                        if (rate > 0) costInTWD = cost * rate;
+                    }
+
+                    // Define Participants
+                    const payers = isShopping ? (item.payerId ? [item.payerId] : []) : (item.payerIds || []);
+                    let beneficiaries = [];
+                    if (item.category === 'loot') {
+                        beneficiaries = payers; // Loot implies personal cost
+                    } else {
+                        const sharedIds = item.sharedInvolvedIds || [];
+                        if (sharedIds.length === 0) beneficiaries = members.map(m => m.id);
+                        else beneficiaries = sharedIds;
+                    }
+
+                    // 1. History (Total Consumption) - Always Add
+                    if (beneficiaries.length > 0) {
+                        const costPerPerson = costInTWD / beneficiaries.length;
+                        beneficiaries.forEach(bid => {
+                            if (data[bid]) data[bid].history += costPerPerson;
+                        });
+                    }
+
+                    // 2. Debt Calculation (Lent/Owe) - Skip if Paid or Loot
+                    if (!item.isPaid && item.category !== 'loot') {
+                        // Add to Payer's Credit (Lent)
+                        payers.forEach(pid => {
+                            if (data[pid]) data[pid].paid_net += (costInTWD / payers.length);
+                        });
+                        // Add to Beneficiary's Debt (Owe)
+                        if (beneficiaries.length > 0) {
+                            const costPerPerson = costInTWD / beneficiaries.length;
+                            beneficiaries.forEach(bid => {
+                                if (data[bid]) data[bid].shared_net += costPerPerson;
+                            });
+                        }
+                    }
+                };
+
+                itinerary.forEach(i => processSettlement(i));
+                shoppingList.forEach(s => { if (s.type === 'split') processSettlement(s, true); });
+
+                // Calculate Net Lent/Owe
+                const finalData = {};
+                Object.keys(data).forEach(id => {
+                    const net = data[id].paid_net - data[id].shared_net;
+                    finalData[id] = {
+                        history: data[id].history,
+                        lent: net > 0 ? net : 0,
+                        owe: net < 0 ? -net : 0
+                    };
+                });
+
+                // Generate Transfer Suggestions
+                const debtors = [];
+                const creditors = [];
+                Object.entries(finalData).forEach(([id, val]) => {
+                    if (val.owe > 1) debtors.push({ id, amount: val.owe });
+                    else if (val.lent > 1) creditors.push({ id, amount: val.lent });
+                });
+
+                const suggestions = [];
+                let i = 0, j = 0;
+                while (i < debtors.length && j < creditors.length) {
+                    const debt = debtors[i];
+                    const credit = creditors[j];
+                    const amount = Math.min(debt.amount, credit.amount);
+                    
+                    if (amount > 0) {
+                        const debtorName = members.find(m => m.id === debt.id)?.name || '???';
+                        const creditorName = members.find(m => m.id === credit.id)?.name || '???';
+                        suggestions.push(`${debtorName} 給 ${creditorName}：${Math.round(amount).toLocaleString()}`);
+                    }
+
+                    debt.amount -= amount;
+                    credit.amount -= amount;
+
+                    if (debt.amount < 1) i++;
+                    if (credit.amount < 1) j++;
+                }
+
+                return { data: finalData, suggestions };
+            }, [itinerary, shoppingList, members, currency, rate]);
+
+            // Helper for Editing Rate
+            const [isEditingRate, setIsEditingRate] = useState(false);
+            const [tempRate, setTempRate] = useState(rate);
+
+            return ( 
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}> 
+                    <div className="bg-white w-full max-w-md rounded-t-3xl shadow-2xl p-6 h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}> 
+                        {accountingMember ? ( 
+                            <div className="flex-1 overflow-y-auto"> 
+                                <div className="flex justify-between items-center mb-4">
+                                    <button onClick={()=>window.history.back()} className="text-sm text-stone-500 flex items-center gap-1"><Icons.ArrowLeft/> 返回總覽</button>
+                                    {!isLocked && (
+                                        <button onClick={() => handleBatchSettle(accountingMember.id)} className="text-sm bg-emerald-100 text-emerald-600 px-3 py-1.5 rounded-full font-bold flex items-center gap-1 active:scale-95 transition-transform">
+                                            ✅ 全部結清
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="bg-stone-50 p-4 rounded-2xl mb-4 text-center border border-stone-100">
+                                    <div className="text-3xl mb-2">{accountingMember.emoji}</div>
+                                    <h2 className="font-bold text-lg text-stone-700">{accountingMember.name} 的消費明細</h2>
+                                    <div className="mt-2 flex flex-col items-center justify-center gap-1">
+                                        <span className="text-xs text-stone-500">總計墊付：</span>
+                                        {Object.entries(stats.res[accountingMember.id].totals).map(([curr, amt]) => (
+                                            <div key={curr} className="font-bold text-theme-main text-lg leading-tight">
+                                                {curr} {Math.round(amt).toLocaleString()}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div> 
+                                <div className="space-y-2"> 
+                                    {stats.res[accountingMember.id].details.map((item, idx) => ( 
+                                        <div key={idx} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${item.isPaid ? 'bg-stone-50 border-stone-200 opacity-60' : 'bg-white border-stone-100 shadow-sm'}`}>
+                                            <div className="flex-1 cursor-pointer" onClick={() => onEditItem(item, item._isShopping)}>
+                                                <div className="font-bold text-stone-700 text-sm mb-0.5">{item.title || item.text}</div>
+                                                <div className="text-xs text-stone-400">
+                                                    {item._isShopping 
+                                                        ? <span className="text-emerald-500 font-bold">🛒 購物分帳</span> 
+                                                        : item.category === 'loot' 
+                                                            ? '戰利品' 
+                                                            : `Day ${item.day} • ${item.category === 'transport' ? '交通' : item.category === 'hotel' ? '住宿' : '行程'}`
+                                                    }
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="text-right">
+                                                    <div className={`font-bold text-sm ${item.isPaid ? 'text-stone-400 line-through' : 'text-theme-main'}`}>{item.currency} {Number(item.cost).toLocaleString()}</div>
+                                                    {item.currency !== 'TWD' && (<div className="text-xs text-stone-400">≈ TWD {Math.floor(item.cost * rate).toLocaleString()}</div>)}
+                                                </div>
+                                                {item.category !== 'loot' && (
+                                                    <button onClick={(e) => { e.stopPropagation(); if(isLocked) return alert("行程已鎖定"); onTogglePaid(item, item._isShopping); }} className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${item.isPaid ? 'bg-green-500 border-green-500 text-white' : 'bg-white border-stone-300 text-stone-200 hover:border-theme-main'}`}>
+                                                        {item.isPaid ? <Icons.Check/> : <Icons.Circle/>}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div> 
+                                    ))} 
+                                </div> 
+                            </div> 
+                        ) : ( 
+                            <> 
+                                <div className="flex justify-between items-center pb-3 border-b border-stone-100">
+                                    <h2 className="font-bold text-lg text-theme-main">分帳管家</h2>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setIsEditingRate(!isEditingRate)} className="px-3 py-1.5 bg-yellow-50 text-yellow-600 rounded-full active:scale-95 flex items-center gap-1 border border-yellow-200 shadow-sm">
+                                            <span className="text-lg">💱</span>
+                                            <span className="text-xs font-bold">匯率: {rate}</span>
+                                        </button>
+                                        <button onClick={onClose} className="text-lg">❌</button>
+                                    </div>
+                                </div> 
+
+                                {isEditingRate && (
+                                    <div className="bg-yellow-50 p-3 rounded-xl mb-3 flex items-center gap-2 border border-yellow-100 animate-fade-in">
+                                        <span className="text-xs font-bold text-yellow-600">匯率設定:</span>
+                                        <input type="number" step="0.0001" value={tempRate} onChange={e => setTempRate(e.target.value)} className="flex-1 p-1 rounded border border-yellow-200 text-sm" />
+                                        <button onClick={() => { onRateChange(tempRate); setIsEditingRate(false); }} className="text-xs bg-yellow-500 text-white px-3 py-1.5 rounded-lg font-bold">儲存</button>
+                                    </div>
+                                )}
+
+                                <div className="flex p-1 bg-stone-100 rounded-xl mb-4">
+                                    <button onClick={() => setMode('overview')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${mode==='overview' ? 'bg-white shadow text-theme-main' : 'text-stone-400'}`}>消費明細</button>
+                                    <button onClick={() => setMode('report')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${mode==='report' ? 'bg-white shadow text-theme-main' : 'text-stone-400'}`}>結算報表</button>
+                                </div>
+
+                                {mode === 'overview' ? (
+                                    <>
+                                        <div className="text-center py-6 bg-sky-50 rounded-2xl mb-4 border border-sky-100">
+                                            <p className="text-stone-400 text-xs font-bold tracking-wider mb-1">全體未結清墊付額</p>
+                                            <div className="flex flex-col items-center">
+                                                <p className="text-4xl font-bold text-theme-main">{currency} {(currency === 'TWD' ? stats.totalPendingTWD : stats.totalPendingForeign).toLocaleString()}</p>
+                                                {currency !== 'TWD' && stats.totalPendingTWD > 0 && (
+                                                    <p className="text-lg font-bold text-stone-500 flex items-center gap-1">
+                                                        <span className="text-xs bg-stone-200 px-1 rounded">TWD</span> {stats.totalPendingTWD.toLocaleString()}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div> 
+                                        <div className="space-y-3 overflow-y-auto flex-1 pb-4"> 
+                                            {members.length > 0 ? members.map(m => { 
+                                                const data = stats.res[m.id]; 
+                                                if (data.total === 0) return null; 
+                                                const isAllSettled = data.pendingTotal === 0; 
+                                                return ( 
+                                                    <div key={m.id} onClick={()=>{setAccountingMember(m);}} className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer ${isAllSettled ? 'bg-stone-50 border-stone-200' : 'bg-white border-stone-100 hover:bg-stone-50 shadow-sm'}`}>
+                                                        <div className="flex items-center gap-3 flex-1">
+                                                            <div className={`w-12 h-12 ${m.color} rounded-full text-white flex items-center justify-center shadow-md text-2xl flex-shrink-0`}>{m.emoji}</div>
+                                                            <div className="flex-shrink-0"><span className="font-bold text-stone-800 text-lg block">{m.name}</span><span className="text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">消費明細 ></span></div>
+                                                        </div>
+                                                        <div className="text-right flex flex-col items-end justify-center min-w-[100px]"> 
+                                                            {isAllSettled ? (<span className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full font-bold">已結清</span>) : ( 
+                                                                <>
+                                                                    <div className={`font-bold text-lg text-theme-main whitespace-nowrap`}>{currency} {(currency === 'TWD' ? data.pendingTWD : data.pendingForeign).toLocaleString()}</div>
+                                                                    {currency !== 'TWD' && data.pendingTWD > 0 && <div className="text-sm font-bold text-stone-500 whitespace-nowrap">TWD {data.pendingTWD.toLocaleString()}</div>}
+                                                                </> 
+                                                            )} 
+                                                        </div>
+                                                    </div> 
+                                                ); 
+                                            }) : <div className="text-center text-stone-400 py-10">請先至首頁建立參與者</div>} 
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex-1 overflow-y-auto flex flex-col">
+                                        <div className="bg-stone-50 p-4 rounded-xl border border-stone-100 mb-4">
+                                            <h3 className="font-bold text-sm text-stone-700 mb-3 text-center">轉帳建議 (只計算未結清項目)</h3>
+                                            {settlementStats.suggestions.length > 0 ? (
+                                                <div className="space-y-2">
+                                                    {settlementStats.suggestions.map((s, i) => (
+                                                        <div key={i} className="bg-white p-3 rounded-lg border border-l-4 border-l-emerald-500 shadow-sm text-sm font-bold text-stone-700 flex justify-between">
+                                                            {s} <span className="text-xs text-stone-400">TWD</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="text-center text-stone-400 text-xs py-2">目前沒有需要轉帳的款項</div>
+                                            )}
+                                        </div>
+
+                                        <table className="w-full text-sm">
+                                            <thead>
+                                                <tr className="border-b text-stone-400 text-xs">
+                                                    <th className="pb-2 text-left w-[30%] pl-12">成員</th>
+                                                    <th className="pb-2 text-right w-[24%]">總消費</th>
+                                                    <th className="pb-2 text-right w-[23%]">代墊</th>
+                                                    <th className="pb-2 text-right w-[23%] pr-3">應付</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-stone-100">
+                                                {members.map(m => {
+                                                    const d = settlementStats.data[m.id];
+                                                    return (
+                                                        <tr key={m.id}>
+                                                            <td className="py-3 pl-2">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className={`w-8 h-8 ${m.color} rounded-full text-white flex items-center justify-center text-xs shadow-sm shrink-0`}>{m.emoji}</div>
+                                                                    <span className="font-bold text-stone-700 text-sm truncate">{m.name}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="py-3 text-right text-stone-500 font-medium">{Math.round(d.history).toLocaleString()}</td>
+                                                            <td className="py-3 text-right text-emerald-500 font-bold">{Math.round(d.lent).toLocaleString()}</td>
+                                                            <td className="py-3 text-right pr-1 text-red-500 font-bold">{Math.round(d.owe).toLocaleString()}</td>
+                                                        </tr>
+                                                    )
+                                                })}
+                                            </tbody>
+                                        </table>
+                                        <div className="text-[10px] text-center text-stone-300 mt-4 pb-4">
+                                            * 報表統一以 TWD (台幣) 計算<br/>
+                                            * 當前匯率: {rate}
+                                        </div>
+                                    </div>
+                                )}
+                            </> 
+                        )} 
+                    </div> 
+                </div> 
+            ); 
+        };
+
+        // --- Main App ---
+
+        function App() {
+            const [viewMode, setViewMode] = useState('tripList');
+            const [trips, setTrips] = useState([]);
+            const [currentTrip, setCurrentTrip] = useState(null);
+            const [itinerary, setItinerary] = useState([]);
+            const [luggageList, setLuggageList] = useState([]); 
+            const [members, setMembers] = useState([]); 
+            const [shoppingList, setShoppingList] = useState([]); 
+            const [selectedDay, setSelectedDay] = useState(1);
+            const [isLoading, setIsLoading] = useState(true); 
+            
+            // UI State Refs for History Management
+            const uiState = useRef({
+                viewMode: 'tripList',
+                isTripModalOpen: false,
+                isItemModalOpen: false,
+                isMoveModalOpen: false,
+                isLockModalOpen: false,
+                isExportModalOpen: false,
+                isMemberModalOpen: false,
+                isLuggageModalOpen: false,
+                showAccounting: false,
+                isLootModalOpen: false,
+                isShoppingListOpen: false,
+                isShoppingItemModalOpen: false,
+                checkPromptItem: null,
+                previewImage: null, 
+                selectMode: false, 
+                reorderMode: false,
+                accountingMember: null 
+            });
+
+            // State Setters Wrapper
+            const [isTripModalOpen, setIsTripModalOpen] = useState(false);
+            const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+            const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+            const [isLockModalOpen, setIsLockModalOpen] = useState(false);
+            const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+            const [isMemberModalOpen, setIsMemberModalOpen] = useState(false); 
+            const [isLuggageModalOpen, setIsLuggageModalOpen] = useState(false); 
+            const [showAccounting, setShowAccounting] = useState(false);
+            const [isLootModalOpen, setIsLootModalOpen] = useState(false); 
+            const [activeLootMember, setActiveLootMember] = useState(null); 
+            
+            const [isShoppingListOpen, setIsShoppingListOpen] = useState(false);
+            const [isShoppingItemModalOpen, setIsShoppingItemModalOpen] = useState(false);
+            const [editingShoppingItem, setEditingShoppingItem] = useState(null);
+            const [checkPromptItem, setCheckPromptItem] = useState(null);
+            const [pendingShoppingItem, setPendingShoppingItem] = useState(null); 
+            const [forcePayerSelectInItemModal, setForcePayerSelectInItemModal] = useState(false);
+
+            const [editingItem, setEditingItem] = useState(null);
+            const [reorderMode, setReorderMode] = useState(false);
+            const [selectMode, setSelectMode] = useState(false);
+            const [selectedItemIds, setSelectedItemIds] = useState(new Set());
+            const [user, setUser] = useState(null);
+            const [lockPassword, setLockPassword] = useState('');
+            const [previewImage, setPreviewImage] = useState(null);
+            const [accountingMember, setAccountingMember] = useState(null);
+
+            // Ref for Day Scroll
+            const daysContainerRef = useRef(null);
+
+            // Sync Ref with State for History Listener
+            useEffect(() => {
+                uiState.current = {
+                    viewMode, isTripModalOpen, isItemModalOpen, isMoveModalOpen, isLockModalOpen,
+                    isExportModalOpen, isMemberModalOpen, isLuggageModalOpen, showAccounting,
+                    isLootModalOpen, isShoppingListOpen, isShoppingItemModalOpen, checkPromptItem,
+                    previewImage, selectMode, reorderMode, accountingMember
+                };
+            }, [viewMode, isTripModalOpen, isItemModalOpen, isMoveModalOpen, isLockModalOpen, isExportModalOpen, isMemberModalOpen, isLuggageModalOpen, showAccounting, isLootModalOpen, isShoppingListOpen, isShoppingItemModalOpen, checkPromptItem, previewImage, selectMode, reorderMode, accountingMember]);
+
+            // Smart Navigation Helper
+            const openModal = (setter) => {
+                window.history.pushState({ modal: true }, '');
+                setter(true);
+            };
+
+            const closeModal = () => {
+                window.history.back(); // This triggers popstate, which closes the modal
+            };
+
+            // Image Preview Helper
+            const handlePreviewImage = (url) => {
+                if(url) window.history.pushState({ preview: true }, '');
+                setPreviewImage(url);
+            }
+
+            // Mode Helper
+            const toggleMode = (setter, val) => {
+                if(val) window.history.pushState({ mode: true }, '');
+                else if (!val && (selectMode || reorderMode)) window.history.back(); 
+                setter(val);
+            }
+
+            const handleAccountingMember = (member) => {
+                if(member) window.history.pushState({ accountingDetail: true }, '');
+                setAccountingMember(member);
+            }
+
+            // Global History Listener
+            useEffect(() => {
+                const handlePopState = (event) => {
+                    const s = uiState.current;
+                    
+                    if (s.previewImage) setPreviewImage(null);
+                    else if (s.selectMode || s.reorderMode) {
+                        setSelectMode(false);
+                        setReorderMode(false);
+                        setSelectedItemIds(new Set());
+                    }
+                    else if (s.checkPromptItem) setCheckPromptItem(null);
+                    else if (s.isShoppingItemModalOpen) setIsShoppingItemModalOpen(false);
+                    else if (s.isItemModalOpen) setIsItemModalOpen(false);
+                    else if (s.isTripModalOpen) setIsTripModalOpen(false);
+                    else if (s.isMoveModalOpen) setIsMoveModalOpen(false);
+                    else if (s.isLockModalOpen) setIsLockModalOpen(false);
+                    else if (s.accountingMember) setAccountingMember(null);
+                    else if (s.isExportModalOpen) setIsExportModalOpen(false);
+                    else if (s.isMemberModalOpen) setIsMemberModalOpen(false);
+                    else if (s.isLuggageModalOpen) setIsLuggageModalOpen(false);
+                    else if (s.showAccounting) setShowAccounting(false);
+                    else if (s.isLootModalOpen) setIsLootModalOpen(false);
+                    else if (s.isShoppingListOpen) setIsShoppingListOpen(false);
+                    else if (s.viewMode === 'itinerary') {
+                        setViewMode('tripList');
+                        setCurrentTrip(null);
+                    }
+                };
+
+                window.addEventListener('popstate', handlePopState);
+                return () => window.removeEventListener('popstate', handlePopState);
+            }, []);
+
+            // Auto-Scroll Active Day Button
+            useEffect(() => {
+                if (daysContainerRef.current) {
+                    const activeBtn = daysContainerRef.current.children[selectedDay - 1];
+                    if (activeBtn) {
+                        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    }
+                }
+            }, [selectedDay]);
+
+            // Swipe Logic Refs
+            const touchStartX = useRef(0);
+            const touchEndX = useRef(0);
+            const touchStartY = useRef(0);
+
+            useEffect(() => { auth.signInAnonymously().then(u => setUser(u.user)).catch(console.error); }, []);
+
+            useEffect(() => {
+                if(!user) return;
+                const unsubscribe = db.collection('trips_v14').orderBy('startDate', 'desc').onSnapshot(snapshot => {
+                    setTrips(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                    setIsLoading(false); 
+                });
+                return () => unsubscribe();
+            }, [user]);
+
+            useEffect(() => {
+                if (!currentTrip || !user) return;
+                const unsubItems = db.collection('trips_v14').doc(currentTrip.id).collection('items').onSnapshot(snapshot => {
+                    setItinerary(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                });
+                const unsubTrip = db.collection('trips_v14').doc(currentTrip.id).onSnapshot(doc => {
+                    if(doc.exists) setCurrentTrip({id: doc.id, ...doc.data()});
+                });
+                const unsubMembers = db.collection('trips_v14').doc(currentTrip.id).collection('members').onSnapshot(snapshot => {
+                    const mems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setMembers(mems);
+                    if(mems.length > 0 && !activeLootMember) setActiveLootMember(mems[0].id);
+                });
+                const unsubLuggage = db.collection('trips_v14').doc(currentTrip.id).collection('luggage').orderBy('createdAt').onSnapshot(snapshot => {
+                    setLuggageList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                });
+                const unsubShopping = db.collection('trips_v14').doc(currentTrip.id).collection('shopping_list').onSnapshot(snapshot => {
+                    setShoppingList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                });
+
+                return () => { unsubItems(); unsubTrip(); unsubMembers(); unsubLuggage(); unsubShopping(); };
+            }, [currentTrip?.id, user]);
+
+            const currentDayItems = useMemo(() => {
+                return itinerary.filter(i => i.day === selectedDay && i.category !== 'loot').sort((a, b) => (a.customOrder || 0) - (b.customOrder || 0)); 
+            }, [itinerary, selectedDay]);
+
+            const tripDays = useMemo(() => { 
+                if(!currentTrip || !currentTrip.startDate || !currentTrip.endDate) return [1];
+                const start = new Date(currentTrip.startDate);
+                const end = new Date(currentTrip.endDate);
+                const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1; 
+                return Array.from({length: diffDays}, (_, i) => i + 1); 
+            }, [currentTrip]);
+            const currentDayInfo = useMemo(() => currentTrip ? getDayInfo(currentTrip.startDate, selectedDay) : {}, [currentTrip, selectedDay]);
+
+            // CRUD Operations
+            const handleSaveTrip = async (tripData) => {
+                if (tripData.id) await db.collection('trips_v14').doc(tripData.id).update(tripData);
+                else await db.collection('trips_v14').add({ ...tripData, isLocked: false, lockCode: '' });
+                setEditingItem(null); 
+            };
+            const handleDeleteTrip = async (id) => {
+                if(window.confirm('確定刪除整趟旅遊？')) { 
+                    await db.collection('trips_v14').doc(id).delete(); 
+                    closeModal(); 
+                }
+            };
+            const handleSaveItem = async (itemData) => {
+                const ref = db.collection('trips_v14').doc(currentTrip.id).collection('items');
+                if (!itemData.customOrder) itemData.customOrder = Date.now();
+                
+                let newItemId = itemData.id;
+
+                if (itemData.id) {
+                    await ref.doc(itemData.id).update(itemData);
+                } else {
+                    const docRef = await ref.add({ ...itemData, isPaid: false });
+                    newItemId = docRef.id;
+                }
+                
+                if (pendingShoppingItem) {
+                    await db.collection('trips_v14').doc(currentTrip.id).collection('shopping_list').doc(pendingShoppingItem.id).update({ 
+                        isBought: true,
+                        linkedLootId: newItemId 
+                    });
+                    setPendingShoppingItem(null);
+                }
+                setEditingItem(null); 
+            };
+            
+            const handleDeleteItem = async (id, closeAfterDelete = true) => { 
+                if(window.confirm('確定刪除？')) {
+                    const docRef = db.collection('trips_v14').doc(currentTrip.id).collection('items').doc(id);
+                    await docRef.delete();
+                    if(closeAfterDelete) closeModal();
+                }
+            };
+
+            const togglePaid = async (item) => { await db.collection('trips_v14').doc(currentTrip.id).collection('items').doc(item.id).update({ isPaid: !item.isPaid }); };
+            
+            const handleSaveShoppingItem = async (data) => {
+                const ref = db.collection('trips_v14').doc(currentTrip.id).collection('shopping_list');
+                const timestamp = Date.now();
+                if (data.id) {
+                    await ref.doc(data.id).update(data);
+                } else {
+                    await ref.add({ ...data, createdAt: timestamp, isBought: false, type: 'normal', isPaid: false });
+                }
+                
+                if (pendingShoppingItem && data.type === 'split') {
+                     await ref.doc(pendingShoppingItem.id).update({ isBought: true, type: 'split', payerId: data.payerId, isPaid: false });
+                     setPendingShoppingItem(null);
+                }
+                setEditingShoppingItem(null);
+            };
+
+            const handleDeleteShoppingItem = async (id, closeAfterDelete = false) => {
+                if (window.confirm("確定刪除此購物項目？")) {
+                    await db.collection('trips_v14').doc(currentTrip.id).collection('shopping_list').doc(id).delete();
+                    if(closeAfterDelete) closeModal(); 
+                }
+            };
+
+            const handleCheckShoppingItem = (item) => {
+                if (item.isBought) return; 
+                window.history.pushState({ checkPrompt: true }, '');
+                setCheckPromptItem(item);
+            };
+
+            const handleRestoreShoppingItem = async (item) => {
+                let confirmMsg = "確定要恢復為未購買狀態嗎？";
+                if (item.linkedLootId) confirmMsg = "此項目已轉為戰利品，恢復將同步刪除該筆戰利品紀錄，確定嗎？";
+
+                if (window.confirm(confirmMsg)) {
+                    if (item.linkedLootId) {
+                        try {
+                            await db.collection('trips_v14').doc(currentTrip.id).collection('items').doc(item.linkedLootId).delete();
+                        } catch(e) { console.log("Loot already deleted or error", e); }
+                    }
+                    
+                    await db.collection('trips_v14').doc(currentTrip.id).collection('shopping_list').doc(item.id).update({
+                        isBought: false,
+                        type: 'normal',
+                        isPaid: false,
+                        payerId: firebase.firestore.FieldValue.delete(),
+                        linkedLootId: firebase.firestore.FieldValue.delete(),
+                    });
+                }
+            };
+
+            const handleShoppingCheckSelection = async (option) => {
+                const item = checkPromptItem;
+                if (!item) return;
+
+                setCheckPromptItem(null);
+
+                setTimeout(async () => {
+                    if (option === 'simple') {
+                        await db.collection('trips_v14').doc(currentTrip.id).collection('shopping_list').doc(item.id).update({ isBought: true });
+                    } else if (option === 'loot') {
+                        setEditingItem({
+                            title: item.text,
+                            cost: item.cost,
+                            currency: item.currency,
+                            fileUrl: item.fileUrl,
+                            memo: item.memo,
+                            category: 'loot',
+                            day: selectedDay,
+                            payerIds: [] 
+                        });
+                        setForcePayerSelectInItemModal(true); 
+                        setPendingShoppingItem(item); 
+                        openModal(setIsItemModalOpen);
+                    } else if (option === 'split') {
+                        setEditingShoppingItem({
+                            ...item,
+                            type: 'split',
+                            payerId: '' 
+                        });
+                        setPendingShoppingItem(item); 
+                        openModal(setIsShoppingItemModalOpen);
+                    }
+                }, 100);
+            };
+
+            const toggleShoppingPaid = async (item) => {
+                await db.collection('trips_v14').doc(currentTrip.id).collection('shopping_list').doc(item.id).update({ isPaid: !item.isPaid });
+            };
+
+            const toggleChecklistItem = async (itemId, index) => {
+                const item = itinerary.find(i => i.id === itemId); if (!item || !item.checklist) return;
+                const newChecklist = [...item.checklist]; newChecklist[index].checked = !newChecklist[index].checked;
+                await db.collection('trips_v14').doc(currentTrip.id).collection('items').doc(itemId).update({ checklist: newChecklist });
+            };
+
+            const handleAddMember = async (memberData) => { await db.collection('trips_v14').doc(currentTrip.id).collection('members').add(memberData); };
+            const handleDeleteMember = async (id) => {
+                if(window.confirm('刪除此參與者？相關的分帳紀錄也會被清除喔！')) {
+                    const batch = db.batch();
+                    const itemsRef = db.collection('trips_v14').doc(currentTrip.id).collection('items');
+                    itinerary.forEach(item => {
+                        let needsUpdate = false;
+                        let updates = {};
+                        if (item.payerIds && item.payerIds.includes(id)) {
+                            updates.payerIds = item.payerIds.filter(pid => pid !== id);
+                            needsUpdate = true;
+                        }
+                        if (item.sharedInvolvedIds && item.sharedInvolvedIds.includes(id)) {
+                             updates.sharedInvolvedIds = item.sharedInvolvedIds.filter(pid => pid !== id);
+                             needsUpdate = true;
+                        }
+                        if(needsUpdate) batch.update(itemsRef.doc(item.id), updates);
+                    });
+                    await batch.commit();
+                    await db.collection('trips_v14').doc(currentTrip.id).collection('members').doc(id).delete();
+                }
+            };
+            const handleAddLuggage = async (text) => {
+                if(!text) return;
+                const checks = {}; 
+                members.forEach(m => checks[m.id] = false); 
+                await db.collection('trips_v14').doc(currentTrip.id).collection('luggage').add({ text, checks, createdAt: Date.now() });
+            };
+            const handleToggleLuggage = async (luggageId, memberId, currentVal) => {
+                const luggage = luggageList.find(l => l.id === luggageId); if(!luggage) return;
+                await db.collection('trips_v14').doc(currentTrip.id).collection('luggage').doc(luggageId).update({ [`checks.${memberId}`]: !currentVal });
+            };
+            const handleDeleteLuggage = async (id) => { if(window.confirm('刪除此項目？')) await db.collection('trips_v14').doc(currentTrip.id).collection('luggage').doc(id).delete(); };
+
+            const handleReorder = async (item, direction) => {
+                if (currentTrip.isLocked) { alert("行程已鎖定"); return; }
+                const items = [...currentDayItems];
+                const idx = items.findIndex(i => i.id === item.id); if (idx === -1) return;
+                let targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+                if (targetIdx >= 0 && targetIdx < items.length) {
+                    const targetItem = items[targetIdx];
+                    const ref = db.collection('trips_v14').doc(currentTrip.id).collection('items');
+                    const itemOrder = item.customOrder || Date.now(); const targetOrder = targetItem.customOrder || Date.now();
+                    if (itemOrder === targetOrder) await ref.doc(targetItem.id).update({ customOrder: itemOrder + 1 });
+                    else { await ref.doc(targetItem.id).update({ customOrder: itemOrder }); await ref.doc(item.id).update({ customOrder: targetOrder }); }
+                }
+            };
+            const toggleSelect = (id) => { const newSet = new Set(selectedItemIds); if (newSet.has(id)) newSet.delete(id); else newSet.add(id); setSelectedItemIds(newSet); };
+            const handleBatchMove = async (targetDay, mode) => {
+                if (selectedItemIds.size === 0) return;
+                const batch = db.batch(); const ref = db.collection('trips_v14').doc(currentTrip.id).collection('items');
+                const itemsToMove = itinerary.filter(i => selectedItemIds.has(i.id));
+                if (mode === 'copy') { itemsToMove.forEach(item => { const newItemRef = ref.doc(); const { id, ...data } = item; batch.set(newItemRef, { ...data, day: targetDay, customOrder: Date.now() + Math.random() }); }); } 
+                else { itemsToMove.forEach(item => { batch.update(ref.doc(item.id), { day: targetDay }); }); }
+                await batch.commit(); setSelectMode(false); setSelectedItemIds(new Set()); closeModal(); alert(mode === 'copy' ? "複製完成" : "移動完成");
+            };
+            const handleLockTrip = async (password) => {
+                if (!password || password.length !== 4) { alert("請輸入4位數密碼"); return; }
+                if (currentTrip.isLocked) {
+                    if (password === currentTrip.lockCode) { await db.collection('trips_v14').doc(currentTrip.id).update({ isLocked: false, lockCode: '' }); closeModal(); } else alert("密碼錯誤");
+                } else { await db.collection('trips_v14').doc(currentTrip.id).update({ isLocked: true, lockCode: password }); closeModal(); }
+            };
+            
+            const handleEditFromAccounting = (item, isShopping) => { 
+                if (isShopping) {
+                    setEditingShoppingItem(item);
+                    openModal(setIsShoppingItemModalOpen);
+                } else {
+                    setEditingItem(item); 
+                    setForcePayerSelectInItemModal(false);
+                    openModal(setIsItemModalOpen); 
+                }
+            };
+
+            const togglePaidFromAccounting = (item, isShopping) => {
+                if (isShopping) toggleShoppingPaid(item);
+                else togglePaid(item);
+            };
+
+            const handleAddLoot = () => {
+                if(!activeLootMember) return alert("請先建立成員");
+                setEditingItem({ category: 'loot', payerIds: [activeLootMember], day: selectedDay, images: [] });
+                setForcePayerSelectInItemModal(false);
+                openModal(setIsItemModalOpen);
+            };
+
+            const handleBatchSettle = async (memberId) => {
+                if(window.confirm('確定要將此成員「墊付」的所有款項標記為已結清嗎？')) {
+                    const batch = db.batch();
+                    const itemsRef = db.collection('trips_v14').doc(currentTrip.id).collection('items');
+                    const shoppingRef = db.collection('trips_v14').doc(currentTrip.id).collection('shopping_list');
+                    
+                    let count = 0;
+
+                    itinerary.forEach(i => {
+                        if (i.category !== 'loot' && !i.isPaid && (i.payerIds || []).includes(memberId)) {
+                             batch.update(itemsRef.doc(i.id), { isPaid: true });
+                             count++;
+                        }
+                    });
+
+                    shoppingList.forEach(s => {
+                        if (s.type === 'split' && !s.isPaid && s.payerId === memberId) {
+                            batch.update(shoppingRef.doc(s.id), { isPaid: true });
+                            count++;
+                        }
+                    });
+
+                    if(count > 0) {
+                        await batch.commit();
+                    }
+                }
+            };
+
+            const handleRateChange = async (newRate) => {
+                if(newRate && !isNaN(newRate)) {
+                    await db.collection('trips_v14').doc(currentTrip.id).update({ customRate: parseFloat(newRate) });
+                }
+            };
+
+            const handleTouchStart = (e) => {
+                touchStartX.current = e.changedTouches[0].screenX;
+                touchStartY.current = e.changedTouches[0].screenY; 
+            };
+
+            const handleTouchEnd = (e) => {
+                touchEndX.current = e.changedTouches[0].screenX;
+                handleSwipeGesture(e.changedTouches[0].screenX, e.changedTouches[0].screenY); 
+            };
+
+            const handleSwipeGesture = (endX, endY) => {
+                const threshold = 50; 
+                const diffX = endX - touchStartX.current;
+                const diffY = endY - touchStartY.current;
+                if (Math.abs(diffY) > Math.abs(diffX)) return;
+                if (Math.abs(diffX) < threshold) return;
+                if (diffX > 0) { if (selectedDay > 1) setSelectedDay(selectedDay - 1); } 
+                else { if (selectedDay < tripDays.length) setSelectedDay(selectedDay + 1); }
+            };
+
+            // --- Render ---
+            if (isLoading) {
+                return (
+                    <div className="min-h-screen flex flex-col items-center justify-center bg-white fade-out-bg">
+                        <div className="text-6xl mb-4 bounce">🧳</div>
+                        <p className="text-stone-400 text-sm font-bold tracking-widest animate-pulse">回憶讀取中...</p>
+                    </div>
+                );
+            }
+
+            if (viewMode === 'tripList') {
+                return (
+                    <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white p-6 relative pb-24">
+                        <h1 className="text-2xl font-bold text-theme-main mb-6 tracking-tight flex items-center gap-2">我的旅遊回憶箱 🧳</h1>
+                        <div className="grid gap-4">
+                            {trips.map(trip => (
+                                <div key={trip.id} onClick={() => { 
+                                    window.history.pushState({view: 'itinerary'}, '');
+                                    setCurrentTrip(trip); setViewMode('itinerary'); setSelectedDay(1); 
+                                }} className="bg-white p-5 rounded-3xl shadow-sm border border-sky-100 trip-card relative overflow-hidden group cursor-pointer card-gradient">
+                                    <img src={`https://flagcdn.com/w160/${trip.country.toLowerCase()}.png`} className="absolute -right-6 -bottom-6 w-28 opacity-10 pointer-events-none object-contain transform rotate-12" alt="flag" />
+                                    <div className="flex items-center gap-4 z-10 relative">
+                                        <span className="text-4xl shrink-0">{trip.icon || '✈️'}</span>
+                                        <div className="flex-1">
+                                            <h2 className="font-bold text-lg text-stone-800 flex items-center gap-2">{trip.name} {trip.isLocked && <span className="text-red-500 text-xs border border-red-200 bg-red-50 px-1 rounded"><Icons.Lock/></span>}</h2>
+                                            <p className="text-xs text-stone-500 font-medium mt-1 flex items-center gap-1"><Icons.Calendar/> {trip.startDate} ~ {trip.endDate}</p>
+                                        </div>
+                                    </div>
+                                    <button onClick={(e) => { e.stopPropagation(); setEditingItem(trip); openModal(setIsTripModalOpen); }} className="absolute top-4 right-4 p-2 text-stone-300 hover:text-theme-main z-20"><Icons.Settings/></button>
+                                </div>
+                            ))}
+                        </div>
+                        <button onClick={() => { setEditingItem(null); openModal(setIsTripModalOpen); }} className="fixed bottom-8 right-6 w-14 h-14 bg-theme-main text-white rounded-full shadow-xl shadow-sky-300/50 flex items-center justify-center active-scale z-50"><Icons.Plus/></button>
+                        {isTripModalOpen && <TripModal trip={editingItem} onClose={closeModal} onSave={handleSaveTrip} onDelete={handleDeleteTrip} />}
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen pb-32 relative bg-white">
+                    {previewImage && <div className="image-preview-overlay" onClick={() => window.history.back()}><ZoomableImage src={previewImage} /></div>}
+                    
+                    <header className="sticky top-0 z-40 glass-panel px-4 py-3 flex flex-col gap-3">
+                        <div className="flex justify-between items-center">
+                            <button onClick={() => window.history.back()} className="text-theme-main flex items-center gap-1 text-sm font-bold active-scale"><Icons.ArrowLeft/> 回列表</button>
+                            <div className="flex gap-2">
+                                <button onClick={() => openModal(setIsShoppingListOpen)} className="p-2 bg-sky-50 text-theme-main rounded-full active-scale"><Icons.ShoppingCart/></button>
+                                <button onClick={() => openModal(setIsLuggageModalOpen)} className="p-2 bg-sky-50 text-theme-main rounded-full active-scale"><Icons.Suitcase/></button>
+                                <button onClick={() => openModal(setIsMemberModalOpen)} className="p-2 bg-sky-50 text-theme-main rounded-full active-scale"><Icons.Users/></button>
+                                <button onClick={() => openModal(setIsExportModalOpen)} className="p-2 bg-sky-50 text-theme-main rounded-full active-scale"><Icons.Export/></button>
+                                <button onClick={() => { setLockPassword(''); openModal(setIsLockModalOpen); }} className={`p-2 rounded-full active-scale ${currentTrip.isLocked ? 'bg-red-100 text-red-500' : 'bg-sky-50 text-theme-main'}`}>{currentTrip.isLocked ? <Icons.Lock/> : <Icons.Unlock/>}</button>
+                            </div>
+                        </div>
+                        <div className="flex justify-between items-end">
+                             <div>
+                                <h1 className="text-xl font-bold text-theme-main tracking-tight flex items-center gap-2"><span>{currentTrip.icon}</span> {currentTrip.name}</h1>
+                                <p className="text-xs text-stone-500 font-bold mt-1 ml-1">{currentDayInfo.date} ({currentDayInfo.weekDay})</p>
+                             </div>
+                            <div className="text-right">
+                                <button onClick={() => openModal(setShowAccounting)} className="text-sm text-white bg-theme-main px-3 py-1.5 rounded-full font-bold mb-1 shadow-lg active-scale">💰 分帳管家</button>
+                            </div>
+                        </div>
+                        <div ref={daysContainerRef} className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 scroll-smooth">
+                            {tripDays.map(d => (
+                                <button key={d} onClick={() => setSelectedDay(d)} className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-bold transition-all ${selectedDay === d ? 'bg-theme-main text-white shadow-md' : 'bg-white text-stone-400 border border-stone-100'}`}>Day {d}</button>
+                            ))}
+                        </div>
+                    </header>
+
+                    <main className="px-4 py-5 space-y-3 min-h-[50vh]" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+                        {currentDayItems.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 opacity-50">
+                                <span className="text-6xl grayscale opacity-50">{currentTrip.icon}</span>
+                                <p className="mt-4 text-stone-400 text-sm font-medium">Day {selectedDay} 還沒有行程</p>
+                                <p className="text-xs text-stone-300 mt-2">左右滑動切換天數</p>
+                            </div>
+                        ) : (
+                            currentDayItems.map(item => {
+                                const payerIds = item.payerIds || [];
+                                const isSelected = selectedItemIds.has(item.id);
+                                const isImage = item.fileUrl && (item.fileUrl.includes('.jpg') || item.fileUrl.includes('.png') || item.fileUrl.includes('.jpeg') || item.fileUrl.includes('alt=media'));
+
+                                return (
+                                <div key={item.id} onClick={() => { 
+                                    if (selectMode) toggleSelect(item.id); 
+                                    else if (!reorderMode) { 
+                                        if(currentTrip.isLocked) { alert("行程已鎖定"); return; } 
+                                        setEditingItem(item); setForcePayerSelectInItemModal(false); openModal(setIsItemModalOpen); 
+                                    } 
+                                }}
+                                    className={`bg-white p-4 rounded-2xl shadow-sm border border-stone-100 transition-all active:scale-[0.99] cursor-pointer relative overflow-hidden item-card-gradient ${isSelected ? 'border-theme-main ring-2 ring-sky-100 bg-sky-50' : ''} ${reorderMode ? 'scale-95 border-orange-200' : ''}`}
+                                >
+                                    <div className="flex gap-4 relative z-10 pointer-events-none">
+                                        {selectMode && (<div className="flex items-center justify-center pr-1">{isSelected ? <div className="text-theme-main"><Icons.CheckCircle/></div> : <div className="text-stone-300"><Icons.Circle/></div>}</div>)}
+                                        <div className="flex flex-col items-center pt-1 min-w-[70px]">
+                                            {item.category === 'transport' ? (<div className="flex flex-col items-center justify-center text-theme-main"><span className="text-2xl mb-1"><TransportIcon type={item.transportType} /></span><div className="flex flex-col items-center text-lg font-bold leading-none text-theme-main"><span>{item.departureTime || '--:--'}</span><span className="text-[10px] text-stone-300 my-[-2px] rotate-90">|</span><span>{item.arrivalTime || '--:--'}</span></div></div>) : item.category === 'hotel' ? (<div className="flex flex-col items-center"><span className="font-bold text-lg text-indigo-500 leading-none">{item.checkInTime || '15:00'}</span><span className="text-2xl mt-1">🏢</span></div>) : item.category === 'checklist' ? (<span className="text-2xl">✨️</span>) : (<div className="flex flex-col items-center"><span className="font-bold text-lg text-theme-main leading-none">{item.time || '--:--'}</span>
+                                                <div className="mt-1"><CategoryIcon type={item.category} /></div>
+                                            </div>)}
+                                        </div>
+                                        <div className="flex-1 min-w-0 space-y-1">
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className="font-bold text-stone-800 truncate text-base">{item.title}</h3>
+                                                </div>
+                                                {item.cost > 0 && !selectMode && !reorderMode && <div onClick={(e) => { e.stopPropagation(); if(!currentTrip.isLocked) togglePaid(item); else alert("行程已鎖定"); }} className={`pointer-events-auto shrink-0 flex items-center gap-1 text-[10px] px-2 py-1 rounded-full border transition-colors cursor-pointer ${item.isPaid ? 'bg-green-50 text-green-600 border-green-200' : 'bg-red-50 text-red-500 border-red-100'}`}>{item.isPaid ? <Icons.CheckCircle/> : <Icons.Circle/>} {item.isPaid ? '已付' : '未付'}</div>}
+                                            </div>
+                                            {item.memo && <div className="bg-stone-50 p-2 rounded-lg text-xs text-stone-600 mt-1 whitespace-pre-wrap border border-stone-100">{item.memo}</div>}
+                                            {(item.category === 'transport') && (<div className="bg-stone-50 p-2 rounded-lg text-xs text-stone-600 space-y-1"><div className="font-bold text-theme-main">{item.transportNo}</div><div className="flex justify-between items-center font-medium"><span>{item.departureLoc}</span><span className="text-stone-300">➔</span><span>{item.arrivalLoc}</span></div></div>)}
+                                            {item.category === 'checklist' && (
+                                                <div className="space-y-2 mt-1 pointer-events-auto">
+                                                    {(item.checklist || []).map((check, idx) => (
+                                                        <div key={idx} onClick={(e) => { e.stopPropagation(); if(!currentTrip.isLocked) toggleChecklistItem(item.id, idx); else alert("行程已鎖定"); }} className="flex items-center gap-2 text-sm text-stone-700 cursor-pointer bg-stone-50 p-2 rounded-lg active:bg-stone-100">
+                                                            <div className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors shrink-0 ${check.checked ? 'bg-theme-main border-theme-main text-white' : 'border-stone-300 bg-white'}`}>{check.checked && <Icons.Check/>}</div>
+                                                            <span className={check.checked ? 'line-through text-stone-400 decoration-2' : ''}>{check.text}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {item.location && !item.location.startsWith('http') && <div className="inline-flex items-center gap-1 text-xs text-stone-400 bg-stone-50 px-2 py-0.5 rounded-md max-w-full truncate"><Icons.MapPin/> {item.location}</div>}
+                                            {item.location && item.location.startsWith('http') && <a href={item.location} target="_blank" onClick={e => e.stopPropagation()} className="pointer-events-auto inline-flex items-center gap-1 text-xs text-white bg-blue-500 px-3 py-1 rounded-full shadow-sm active:bg-blue-600 transition-colors max-w-full truncate font-bold my-1"><Icons.MapPin/> 開啟地圖</a>}
+                                            <div className="flex justify-between items-end">
+                                                {item.notes && <p className="text-xs text-stone-500 bg-stone-50 p-2 rounded-lg mt-1 max-w-[70%]">{item.notes}</p>}
+                                                {item.cost > 0 && <div className="text-right flex flex-col items-end ml-auto"><p className="text-sm font-bold text-theme-main">{item.currency === 'TWD' ? 'TWD' : COUNTRIES[currentTrip.country].currency} {Number(item.cost).toLocaleString()}</p>
+                                                    <div className="flex -space-x-1 mt-1">
+                                                        {payerIds.map(pid => {
+                                                            const m = members.find(x => x.id === pid);
+                                                            return m ? <div key={pid} className={`w-5 h-5 ${m.color} rounded-full text-white flex items-center justify-center text-xs ring-1 ring-white`}>{m.emoji}</div> : null;
+                                                        })}
+                                                    </div>
+                                                </div>}
+                                            </div>
+                                            {item.fileUrl && <div className="mt-2 pointer-events-auto">{isImage ? (<div className="w-full h-32 bg-stone-100 rounded-lg overflow-hidden border border-stone-200 cursor-pointer relative" onClick={(e) => { e.stopPropagation(); handlePreviewImage(item.fileUrl); }}><img src={item.fileUrl} className="w-full h-full object-cover" alt="附件" /><div className="absolute bottom-1 right-1 bg-black/50 text-white text-[10px] px-1.5 rounded">🔍 點擊放大</div></div>) : (<a href={item.fileUrl} target="_blank" onClick={e => e.stopPropagation()} className="inline-flex gap-1 text-[10px] bg-sky-50 text-theme-main px-2 py-1 rounded-full border border-sky-100 font-bold active-scale"><Icons.ExternalLink/> 查看附件</a>)}</div>}
+                                        </div>
+                                        {reorderMode && !currentTrip.isLocked && <div className="flex flex-col justify-center gap-1 pl-2 border-l border-stone-100 pointer-events-auto"><button onClick={(e) => { e.stopPropagation(); handleReorder(item, 'up'); }} className="p-1.5 bg-stone-100 rounded-full text-stone-500 active:bg-stone-200"><Icons.ChevronUp/></button><button onClick={(e) => { e.stopPropagation(); handleReorder(item, 'down'); }} className="p-1.5 bg-stone-100 rounded-full text-stone-500 active:bg-stone-200"><Icons.ChevronDown/></button></div>}
+                                    </div>
+                                </div>
+                                );
+                            })
+                        )}
+                    </main>
+
+                    <div className="fixed bottom-8 left-6 z-50">
+                        <button onClick={() => openModal(setIsLootModalOpen)} className="w-14 h-14 bg-pink-500 text-white rounded-full shadow-xl shadow-pink-300/50 flex items-center justify-center active-scale border-4 border-white">
+                            <Icons.ShoppingBag />
+                        </button>
+                    </div>
+
+                    <div className="fixed bottom-8 right-6 flex flex-col items-center gap-3 z-50">
+                        {selectMode && (
+                            <div className="flex justify-end w-full">
+                                <button onClick={() => { setSelectMode(false); setSelectedItemIds(new Set()); }} className="w-10 h-10 bg-white text-stone-500 rounded-full shadow-md flex items-center justify-center border border-stone-200 active:scale-95">
+                                    <Icons.Undo />
+                                </button>
+                            </div>
+                        )}
+
+                        {!currentTrip.isLocked && !reorderMode && !selectMode && (
+                            <button onClick={() => toggleMode(setSelectMode, true)} className={`w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all active-scale bg-white text-stone-400`}>
+                                <Icons.ArrowLeftRight />
+                            </button>
+                        )}
+
+                        {!currentTrip.isLocked && !selectMode && (
+                            <button onClick={() => { if(reorderMode) window.history.back(); else toggleMode(setReorderMode, true); }} className={`w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all active-scale ${reorderMode ? 'bg-orange-500 text-white' : 'bg-white text-stone-400'}`}>
+                                {reorderMode ? <Icons.Check /> : <Icons.ArrowUpDown />}
+                            </button>
+                        )}
+
+                        {!selectMode && !reorderMode && !currentTrip.isLocked && (
+                            <button onClick={() => { setEditingItem(null); setForcePayerSelectInItemModal(false); openModal(setIsItemModalOpen); }} className="w-14 h-14 bg-theme-main text-white rounded-full shadow-xl shadow-sky-300/50 flex items-center justify-center active-scale"><Icons.Plus/></button>
+                        )}
+                        
+                        {selectMode && (
+                            <div className="flex flex-col gap-2 bg-white p-2 rounded-2xl shadow-xl border border-sky-100">
+                                <button onClick={() => openModal(setIsMoveModalOpen)} className="bg-theme-main text-white px-4 py-2 rounded-xl font-bold shadow active-scale disabled:opacity-50" disabled={selectedItemIds.size===0}>
+                                    選取 {selectedItemIds.size} 項
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {isTripModalOpen && <TripModal trip={editingItem} onClose={closeModal} onSave={handleSaveTrip} onDelete={handleDeleteTrip} />}
+                    {isItemModalOpen && <ItemModal item={editingItem} day={selectedDay} country={currentTrip.country} tripId={currentTrip.id} members={members} onClose={() => {closeModal(); setForcePayerSelectInItemModal(false);}} onSave={handleSaveItem} onDelete={handleDeleteItem} forcePayerSelect={forcePayerSelectInItemModal} isLocked={currentTrip.isLocked} />}
+                    {isMoveModalOpen && <MoveDayModal days={tripDays} currentDay={selectedDay} count={selectedItemIds.size} onClose={closeModal} onMove={handleBatchMove} />}
+                    {showAccounting && <AccountingModal itinerary={itinerary} shoppingList={shoppingList} currency={COUNTRIES[currentTrip.country].currency} onClose={closeModal} members={members} onEditItem={handleEditFromAccounting} rate={currentTrip.customRate || COUNTRIES[currentTrip.country].rate} onTogglePaid={togglePaidFromAccounting} accountingMember={accountingMember} setAccountingMember={handleAccountingMember} isLocked={currentTrip.isLocked} handleBatchSettle={handleBatchSettle} onRateChange={handleRateChange} />}
+                    {isLockModalOpen && <LockModal isLocked={currentTrip.isLocked} onClose={closeModal} onConfirm={handleLockTrip} />}
+                    {isExportModalOpen && <ExportModal itinerary={itinerary} tripName={currentTrip.name} onClose={closeModal} />}
+                    {isLootModalOpen && <LootModal members={members} activeMemberId={activeLootMember} setActiveMemberId={setActiveLootMember} lootList={itinerary.filter(i => i.category === 'loot' && i.payerIds?.includes(activeLootMember))} onClose={closeModal} onAdd={handleAddLoot} onEdit={(item)=> {setEditingItem(item); setForcePayerSelectInItemModal(false); openModal(setIsItemModalOpen);}} onDelete={(id) => handleDeleteItem(id, false)} setPreviewImage={handlePreviewImage} isLocked={currentTrip.isLocked} rate={currentTrip.customRate || COUNTRIES[currentTrip.country].rate} />}
+                    
+                    {isMemberModalOpen && <MemberModal members={members} onClose={closeModal} onAdd={handleAddMember} onDelete={handleDeleteMember} isLocked={currentTrip.isLocked} />}
+                    {isLuggageModalOpen && <LuggageModal luggageList={luggageList} members={members} onClose={closeModal} onAdd={handleAddLuggage} onToggle={handleToggleLuggage} onDelete={handleDeleteLuggage} isLocked={currentTrip.isLocked} />}
+
+                    {isShoppingListOpen && (
+                        <ShoppingListModal 
+                            shoppingList={shoppingList} 
+                            members={members} 
+                            country={currentTrip.country} 
+                            tripId={currentTrip.id}
+                            onClose={closeModal} 
+                            onAdd={() => { setEditingShoppingItem(null); openModal(setIsShoppingItemModalOpen); }}
+                            onEdit={(item) => { setEditingShoppingItem(item); openModal(setIsShoppingItemModalOpen); }}
+                            onDelete={(id, close) => handleDeleteShoppingItem(id, close)}
+                            onCheck={handleCheckShoppingItem}
+                            onTogglePaid={toggleShoppingPaid}
+                            setPreviewImage={handlePreviewImage}
+                            onRestore={handleRestoreShoppingItem}
+                            isLocked={currentTrip.isLocked}
+                        />
+                    )}
+                    {isShoppingItemModalOpen && (
+                        <ShoppingItemModal 
+                            item={editingShoppingItem} 
+                            country={currentTrip.country} 
+                            tripId={currentTrip.id} 
+                            members={members} 
+                            onClose={closeModal} 
+                            onSave={handleSaveShoppingItem}
+                            onDelete={(id) => handleDeleteShoppingItem(id, true)} 
+                            isLocked={currentTrip.isLocked}
+                        />
+                    )}
+                    {checkPromptItem && (
+                        <ShoppingCheckModal 
+                            onClose={() => setCheckPromptItem(null)} 
+                            onSelect={handleShoppingCheckSelection} 
+                        />
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+    <script>
+        // 註冊 PWA Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker 註冊成功', reg))
+                    .catch(err => console.log('Service Worker 註冊失敗', err));
+            });
+        }
+    </script>
+</body>
+</html>
