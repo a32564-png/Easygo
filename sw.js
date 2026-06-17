@@ -1,4 +1,4 @@
-const CACHE_NAME = 'travel-box-v84';
+const CACHE_NAME = 'travel-box-v85'; // 升級到 v85 才能幫全體手機自動清除舊快取！
 const assetsToCache = [
   'index.html',
   'manifest.json',
@@ -7,6 +7,8 @@ const assetsToCache = [
 
 // 安裝 Service Worker 並快取檔案
 self.addEventListener('install', (event) => {
+  // 強制讓新的 Service Worker 馬上跳過等待、直接就位
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(assetsToCache);
@@ -14,13 +16,16 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// 激活時清理舊快取
+// 激活時清理舊快取，並讓新 SW 立即掌控網頁
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
       );
+    }).then(() => {
+      // 讓新 Service Worker 立即接管目前的網頁，不用等下次開啟
+      return self.clients.claim();
     })
   );
 });
