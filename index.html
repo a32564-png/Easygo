@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>我的旅遊回憶箱 (V84 - 介面優化版)</title>
+    <title>我的旅遊回憶箱 (V86)</title>
     
     <meta name="theme-color" content="#0ea5e9">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -79,7 +79,8 @@
             Grid: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
             List: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>,
             Banknote: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>,
-            CheckSquare: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            CheckSquare: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>,
+            DownloadCloud: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m8 17 4 4 4-4"/></svg>
         };
 
         // --- Firebase Config ---
@@ -131,6 +132,31 @@
             '🦉', '🦁', '🐡', '🦀', '🦞', '🦫', '🦥', '🦦', 
             '🐑', '🦘', '🐫', '🦧', '🐬', '🐳', '🦈', '🦝', '🦔'
         ];
+
+        // --- Categories and Analysis Options ---
+        const SUB_CATEGORY_OPTIONS = [
+            { id: 'food', label: '美食/零食', emoji: '🍘' },
+            { id: 'consumables', label: '消耗/日用', emoji: '🧴' },
+            { id: 'clothing', label: '戰利品/服飾', emoji: '🛍️' },
+            { id: 'tickets', label: '門票/體驗', emoji: '🏯' },
+            { id: 'transport', label: '交通/車資', emoji: '🚌' },
+            { id: 'proxy', label: '代購/幫買', emoji: '📦' },
+            { id: 'other', label: '其他/雜支', emoji: '✨' },
+        ];
+
+        // Combine standard itinerary categories with new sub-categories for Pie Chart
+        const EXPENSE_CATEGORIES = {
+            'food': { label: '美食', emoji: '🍛', color: '#f59e0b' },
+            'hotel': { label: '住宿', emoji: '🏢', color: '#6366f1' },
+            'transport': { label: '交通', emoji: '🚌', color: '#3b82f6' },
+            'sight': { label: '景點', emoji: '🏯', color: '#10b981' },
+            'shop': { label: '購物', emoji: '🛍️', color: '#ec4899' },
+            'consumables': { label: '消耗品', emoji: '🧴', color: '#06b6d4' },
+            'clothing': { label: '服飾', emoji: '👕', color: '#f43f5e' },
+            'tickets': { label: '門票', emoji: '🎟️', color: '#84cc16' },
+            'proxy': { label: '代購', emoji: '📦', color: '#f97316' },
+            'other': { label: '其他', emoji: '✨', color: '#8b5cf6' }
+        };
         
         const CategoryIcon = ({ type }) => { 
             switch(type) { 
@@ -236,20 +262,55 @@
             };
 
             return (
-                <div 
-                    ref={containerRef}
-                    className="w-full h-full flex items-center justify-center overflow-hidden touch-none"
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onClick={(e) => e.stopPropagation()} 
-                >
-                    <img 
-                        src={src} 
-                        className="max-w-full max-h-full object-contain"
-                        style={{ transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})` }}
-                        alt="Preview"
-                    />
+                <div ref={containerRef} className="w-full h-full flex items-center justify-center overflow-hidden touch-none" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onClick={(e) => e.stopPropagation()}>
+                    <img src={src} className="max-w-full max-h-full object-contain" style={{ transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})` }} alt="Preview"/>
                 </div>
+            );
+        };
+
+        // --- Custom Alert & Confirm (解決預覽視窗原生彈窗被阻擋的問題) ---
+        window.alert = (msg) => { window.dispatchEvent(new CustomEvent('show-alert', { detail: msg })); };
+        const customConfirm = (msg, onConfirm) => { window.dispatchEvent(new CustomEvent('show-confirm', { detail: { msg, onConfirm } })); };
+
+        const CustomAlertConfirm = () => {
+            const [alertMsg, setAlertMsg] = useState(null);
+            const [confirmData, setConfirmData] = useState(null);
+
+            useEffect(() => {
+                const handleAlert = (e) => setAlertMsg(e.detail);
+                const handleConfirm = (e) => setConfirmData(e.detail);
+                window.addEventListener('show-alert', handleAlert);
+                window.addEventListener('show-confirm', handleConfirm);
+                return () => {
+                    window.removeEventListener('show-alert', handleAlert);
+                    window.removeEventListener('show-confirm', handleConfirm);
+                };
+            }, []);
+
+            return (
+                <>
+                    {alertMsg && (
+                        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
+                            <div className="bg-white p-6 rounded-3xl max-w-sm w-full mx-4 shadow-2xl text-center space-y-4 transform transition-all scale-100">
+                                <div className="text-4xl">⚠️</div>
+                                <h3 className="font-bold text-stone-800 text-lg">{alertMsg}</h3>
+                                <button onClick={() => setAlertMsg(null)} className="w-full bg-theme-main text-white py-3 rounded-xl font-bold shadow-md active:scale-95 transition-transform">確定</button>
+                            </div>
+                        </div>
+                    )}
+                    {confirmData && (
+                        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
+                            <div className="bg-white p-6 rounded-3xl max-w-sm w-full mx-4 shadow-2xl text-center space-y-4 transform transition-all scale-100">
+                                <div className="text-4xl">❓</div>
+                                <h3 className="font-bold text-stone-800 text-lg leading-relaxed">{confirmData.msg}</h3>
+                                <div className="flex gap-3 mt-4">
+                                    <button onClick={() => setConfirmData(null)} className="flex-1 bg-stone-100 text-stone-600 py-3 rounded-xl font-bold active:scale-95 transition-transform">取消</button>
+                                    <button onClick={() => { confirmData.onConfirm(); setConfirmData(null); }} className="flex-1 bg-theme-main text-white py-3 rounded-xl font-bold shadow-md active:scale-95 transition-transform">確定</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </>
             );
         };
 
@@ -328,13 +389,13 @@
         };
 
         const ItemModal = ({ item, day, country, tripId, members, onClose, onSave, onDelete, forcePayerSelect, isLocked }) => {
-            const [form, setForm] = useState({ day, time: '', title: '', category: 'sight', location: '', cost: '', currency: COUNTRIES[country].currency, notes: '', memo: '', payerIds: [], sharedInvolvedIds: [], fileUrl: '', images: [], checklist: [], transportType: 'plane', transportNo: '', departureTime: '', arrivalTime: '', departureLoc: '', arrivalLoc: '', checkInTime: '' });
+            const [form, setForm] = useState({ day, time: '', title: '', category: 'sight', subCategory: 'other', location: '', cost: '', currency: COUNTRIES[country].currency, notes: '', memo: '', payerIds: [], sharedInvolvedIds: [], fileUrl: '', images: [], checklist: [], transportType: 'plane', transportNo: '', departureTime: '', arrivalTime: '', departureLoc: '', arrivalLoc: '', checkInTime: '' });
             const [uploading, setUploading] = useState(false);
             const [saving, setSaving] = useState(false);
             const fileInputRef = useRef(null);
             
             useEffect(() => { 
-                if(item) setForm({...form, ...item}); 
+                if(item) setForm({...form, ...item, subCategory: item.subCategory || 'other'}); 
             }, [item]);
 
             const togglePayer = (pid) => { const current = form.payerIds || []; setForm({...form, payerIds: current.includes(pid) ? current.filter(id=>id!==pid) : [...current, pid]}); };
@@ -402,6 +463,19 @@
                                     {form.category !== 'loot' && form.category !== 'transport' && form.category !== 'hotel' && (<div className="w-1/3"><label className="text-[10px] font-bold text-stone-400 uppercase">時間</label><input type="tel" value={form.time} onChange={e => handleTimeInput(e, 'time')} placeholder="10:00" className="w-full mt-1 p-3 bg-white border border-stone-200 rounded-xl font-bold text-center outline-none focus:border-theme-main"/></div>)}
                                     <div className="flex-1"><label className="text-[10px] font-bold text-stone-400 uppercase">{form.category==='transport'?'航班/車次': form.category==='hotel'?'飯店名稱':'名稱'}</label><input type="text" value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full mt-1 p-3 bg-white border border-stone-200 rounded-xl font-medium outline-none focus:border-theme-main"/></div>
                                 </div>
+
+                                {form.category === 'loot' && (
+                                    <div className="bg-pink-50 p-3 rounded-xl border border-pink-100 mb-2">
+                                        <label className="text-[10px] font-bold text-pink-500 uppercase block mb-2">分類標籤 (幫助帳務分析更準確)</label>
+                                        <div className="flex gap-2 overflow-x-auto py-1 no-scrollbar">
+                                            {SUB_CATEGORY_OPTIONS.map(c => (
+                                                <button key={c.id} onClick={() => setForm({...form, subCategory: c.id})} className={`flex-shrink-0 px-3 py-1.5 rounded-full border text-xs font-bold transition-all ${form.subCategory === c.id ? 'bg-pink-500 text-white border-transparent shadow-md' : 'bg-white border-pink-200 text-pink-500'}`}>
+                                                    {c.emoji} {c.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                                 
                                 {form.category === 'transport' && (<div className="bg-stone-50 p-3 rounded-xl space-y-2"><div className="flex gap-2"><select value={form.transportType} onChange={e=>setForm({...form, transportType:e.target.value})} className="p-2 rounded-lg w-full"><option value="plane">✈️ 飛機</option><option value="train">🚆 火車</option><option value="bus">🚌 巴士</option><option value="ferry">⛴️ 渡輪</option></select></div><div className="flex gap-2 items-center"><span className="text-xs font-bold w-8 text-stone-400">出發</span><input type="tel" value={form.departureTime} onChange={e=>handleTimeInput(e, 'departureTime')} placeholder="20:00" className="w-24 p-2 rounded-lg"/><input placeholder="出發地" value={form.departureLoc} onChange={e=>setForm({...form, departureLoc:e.target.value})} className="flex-1 p-2 rounded-lg"/></div><div className="flex gap-2 items-center"><span className="text-xs font-bold w-8 text-stone-400">抵達</span><input type="tel" value={form.arrivalTime} onChange={e=>handleTimeInput(e, 'arrivalTime')} placeholder="23:30" className="w-24 p-2 rounded-lg"/><input placeholder="目的地" value={form.arrivalLoc} onChange={e=>setForm({...form, arrivalLoc:e.target.value})} className="flex-1 p-2 rounded-lg"/></div></div>)}
                                 {form.category === 'hotel' && (<div><label className="text-[10px] font-bold text-stone-400 uppercase">入住時間</label><input type="tel" value={form.checkInTime} onChange={e=>handleTimeInput(e, 'checkInTime')} placeholder="15:00" className="w-full p-3 bg-white border rounded-xl"/></div>)}
@@ -461,12 +535,12 @@
         };
 
         const ShoppingItemModal = ({ item, country, tripId, members, onClose, onSave, onDelete, isLocked }) => {
-            const [form, setForm] = useState({ text: '', cost: '', currency: COUNTRIES[country].currency, memo: '', location: '', fileUrl: '', payerId: '', type: 'normal', sharedInvolvedIds: [] });
+            const [form, setForm] = useState({ text: '', cost: '', currency: COUNTRIES[country].currency, memo: '', location: '', fileUrl: '', payerId: '', type: 'normal', sharedInvolvedIds: [], subCategory: 'other' });
             const [uploading, setUploading] = useState(false);
             const [saving, setSaving] = useState(false);
             const fileInputRef = useRef(null);
 
-            useEffect(() => { if(item) setForm({...item, sharedInvolvedIds: item.sharedInvolvedIds || []}); }, [item]);
+            useEffect(() => { if(item) setForm({...item, sharedInvolvedIds: item.sharedInvolvedIds || [], subCategory: item.subCategory || 'other'}); }, [item]);
 
             const toggleShared = (pid) => { 
                 const current = form.sharedInvolvedIds && form.sharedInvolvedIds.length > 0 ? form.sharedInvolvedIds : members.map(m=>m.id);
@@ -507,6 +581,17 @@
                         </div>
 
                         <div><label className="text-[10px] font-bold text-stone-400 uppercase">品名</label><input type="text" value={form.text} onChange={e => setForm({ ...form, text: e.target.value })} className="w-full mt-1 p-3 bg-white border border-stone-200 rounded-xl font-medium outline-none focus:border-theme-main" placeholder="想買什麼..." /></div>
+
+                        <div className="bg-sky-50 p-3 rounded-xl border border-sky-100 mb-2">
+                            <label className="text-[10px] font-bold text-theme-main uppercase block mb-2">分類標籤 (幫助帳務分析更準確)</label>
+                            <div className="flex gap-2 overflow-x-auto py-1 no-scrollbar">
+                                {SUB_CATEGORY_OPTIONS.map(c => (
+                                    <button key={c.id} onClick={() => setForm({...form, subCategory: c.id})} className={`flex-shrink-0 px-3 py-1.5 rounded-full border text-xs font-bold transition-all ${form.subCategory === c.id ? 'bg-theme-main text-white border-transparent shadow-md' : 'bg-white border-sky-200 text-theme-main'}`}>
+                                        {c.emoji} {c.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
 
                         <div className="bg-stone-50 p-3 rounded-xl border border-stone-100 space-y-3">
                             <div className="flex gap-2 w-full">
@@ -790,8 +875,91 @@
         )}
         <div className="border-t pt-4 mt-2"><p className="text-xs text-stone-400 mb-2">已加入的夥伴</p><div className="space-y-2 max-h-56 overflow-y-auto">{members.map(m => (<div key={m.id} className="flex items-center justify-between bg-stone-50 p-2 rounded-lg"><div className="flex items-center gap-2"><div className={`w-8 h-8 ${m.color} rounded-full flex items-center justify-center text-white text-sm`}>{m.emoji}</div><span className="font-bold text-stone-700">{m.name}</span></div>{!isLocked && <button onClick={() => onDelete(m.id)} className="text-stone-400 hover:text-red-500"><Icons.Trash2/></button>}</div>))}{members.length === 0 && <p className="text-center text-stone-300 text-sm">還沒有人加入喔</p>}</div></div> </div> </div> ); };
         
-        const LuggageModal = ({ luggageList, members, onClose, onAdd, onToggle, onDelete, isLocked }) => { const [text, setText] = useState(''); return ( <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}> <div className="bg-white w-full max-w-md rounded-t-3xl shadow-2xl p-6 space-y-4 h-[93vh] flex flex-col" onClick={e => e.stopPropagation()}> <div className="flex justify-between items-center pb-2 border-b"><h2 className="font-bold text-lg flex items-center gap-2 text-theme-main">行李清單</h2><button onClick={onClose} className="text-lg">❌</button></div> <div className="flex-1 overflow-y-auto space-y-4 p-1">{luggageList.map(item => (<div key={item.id} className="bg-stone-50 p-3 rounded-xl border border-stone-100 relative group"><div className="font-bold text-stone-700 mb-2 pr-8">{item.text}</div>{!isLocked && <button onClick={() => onDelete(item.id)} className="absolute top-2 right-2 text-stone-300 hover:text-red-400 p-2"><Icons.Trash2/></button>}<div className="flex gap-3 flex-wrap">{members.map(m => { const isChecked = item.checks?.[m.id]; return (<div key={m.id} onClick={() => !isLocked && onToggle(item.id, m.id, isChecked)} className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center cursor-pointer transition-all ${isChecked ? 'bg-stone-200 border-stone-200 grayscale opacity-50' : `${m.color} border-transparent text-white shadow-sm`}`}>{isChecked ? <Icons.Check/> : m.emoji}</div>); })}{members.length === 0 && <span className="text-xs text-stone-400">請先新增參與者</span>}</div></div>))}{luggageList.length === 0 && <div className="text-center text-stone-300 py-10">還沒有項目，快來新增吧！</div>}</div> 
-        {!isLocked && <div className="flex gap-2 border-t pt-3"><input type="text" placeholder="新增檢查項目 (例如: 護照)" value={text} onChange={e => setText(e.target.value)} className="flex-1 p-3 bg-stone-100 rounded-xl outline-none"/><button onClick={() => { onAdd(text); setText(''); }} className="bg-theme-main text-white px-4 rounded-xl font-bold"><Icons.Plus/></button></div>} </div> </div> ); };
+        // --- 常用行李管理 (首頁使用) ---
+        const GlobalLuggageModal = ({ globalLuggage, onClose, onAdd, onDelete, onEdit }) => {
+            const [text, setText] = useState('');
+            return (
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+                    <div className="bg-white w-full max-w-md rounded-t-3xl shadow-2xl p-6 space-y-4 h-[93vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center pb-2 border-b">
+                            <div>
+                                <h2 className="font-bold text-lg flex items-center gap-2 text-theme-main"><Icons.Suitcase/> 常用行李庫</h2>
+                                <p className="text-[10px] text-stone-400 font-bold mt-1">統一存取必備品，建立行程時快速勾選匯入。</p>
+                            </div>
+                            <button onClick={onClose} className="text-lg pb-4">❌</button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto space-y-3 p-1">
+                            {globalLuggage.map(item => (
+                                <div key={item.id} className="flex items-center justify-between bg-stone-50 p-3 rounded-xl border border-stone-100">
+                                    <span className="font-bold text-stone-700 text-sm">{item.text}</span>
+                                    <button onClick={() => onDelete(item.id)} className="text-stone-300 hover:text-red-400 p-1"><Icons.Trash2/></button>
+                                </div>
+                            ))}
+                            {globalLuggage.length === 0 && <div className="text-center text-stone-300 py-10 text-sm font-bold">還沒有常用項目，快來建立範本吧！</div>}
+                        </div>
+
+                        <div className="flex gap-2 border-t pt-3">
+                            <input type="text" placeholder="新增常用範本 (例如: 護照、行充)" value={text} onChange={e => setText(e.target.value)} className="flex-1 p-3 bg-stone-100 rounded-xl outline-none"/>
+                            <button onClick={() => { onAdd(text); setText(''); }} className="bg-theme-main text-white px-4 rounded-xl font-bold"><Icons.Plus/></button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 挑選常用行李 (旅程中使用) ---
+        const LuggagePickerModal = ({ globalLuggage, onClose, onAdd }) => {
+            const [addedTexts, setAddedTexts] = useState(new Set());
+            const handleAdd = (text) => {
+                onAdd(text);
+                setAddedTexts(new Set(addedTexts).add(text));
+            };
+            return (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+                    <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-5 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center pb-2 border-b mb-3">
+                            <h2 className="font-bold text-base flex items-center gap-2 text-theme-main"><Icons.DownloadCloud/> 挑選常用物品</h2>
+                            <button onClick={onClose} className="text-lg">❌</button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto space-y-2 pr-1 no-scrollbar">
+                            {globalLuggage.map(item => {
+                                const isAdded = addedTexts.has(item.text);
+                                return (
+                                    <div key={item.id} className="flex items-center justify-between bg-stone-50 p-3 rounded-lg border border-stone-100">
+                                        <span className={`font-bold text-sm ${isAdded ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{item.text}</span>
+                                        <button onClick={() => !isAdded && handleAdd(item.text)} className={`w-8 h-8 rounded flex items-center justify-center transition-all ${isAdded ? 'bg-green-100 text-green-500' : 'bg-theme-main text-white active:scale-95'}`}>
+                                            {isAdded ? <Icons.Check/> : <Icons.Plus/>}
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                            {globalLuggage.length === 0 && <div className="text-center text-stone-300 py-10 text-xs">請先至首頁建立常用行李庫</div>}
+                        </div>
+                        <button onClick={onClose} className="mt-4 w-full py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">完成挑選</button>
+                    </div>
+                </div>
+            );
+        };
+
+        const LuggageModal = ({ luggageList, members, onClose, onAdd, onToggle, onDelete, isLocked, openPicker }) => { 
+            const [text, setText] = useState(''); 
+            return ( 
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}> 
+                    <div className="bg-[#FDFBF7] w-full max-w-md rounded-t-3xl shadow-2xl p-6 space-y-4 h-[93vh] flex flex-col" onClick={e => e.stopPropagation()}> 
+                        <div className="flex justify-between items-center pb-2 border-b">
+                            <h2 className="font-bold text-lg flex items-center gap-2 text-theme-main">行李清單</h2>
+                            <div className="flex gap-3">
+                                {!isLocked && <button onClick={openPicker} className="text-xs bg-sky-100 text-theme-main font-bold px-3 py-1.5 rounded-full flex items-center gap-1 active:scale-95"><Icons.DownloadCloud/> 挑選常用</button>}
+                                <button onClick={onClose} className="text-lg">❌</button>
+                            </div>
+                        </div> 
+                        <div className="flex-1 overflow-y-auto space-y-4 p-1">{luggageList.map(item => (<div key={item.id} className="bg-white p-3 rounded-xl shadow-sm border border-stone-100 relative group"><div className="font-bold text-stone-700 mb-2 pr-8">{item.text}</div>{!isLocked && <button onClick={() => onDelete(item.id)} className="absolute top-2 right-2 text-stone-300 hover:text-red-400 p-2"><Icons.Trash2/></button>}<div className="flex gap-3 flex-wrap">{members.map(m => { const isChecked = item.checks?.[m.id]; return (<div key={m.id} onClick={() => !isLocked && onToggle(item.id, m.id, isChecked)} className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center cursor-pointer transition-all ${isChecked ? 'bg-stone-200 border-stone-200 grayscale opacity-50' : `${m.color} border-transparent text-white shadow-sm`}`}>{isChecked ? <Icons.Check/> : m.emoji}</div>); })}{members.length === 0 && <span className="text-xs text-stone-400">請先新增參與者</span>}</div></div>))}{luggageList.length === 0 && <div className="text-center text-stone-300 py-10 text-sm font-bold">還沒有項目，快來新增吧！</div>}</div> 
+                        {!isLocked && <div className="flex gap-2 border-t pt-3"><input type="text" placeholder="新增單項 (例如: 隱形眼鏡)" value={text} onChange={e => setText(e.target.value)} className="flex-1 p-3 bg-white border border-stone-200 rounded-xl outline-none"/><button onClick={() => { onAdd(text); setText(''); }} className="bg-theme-main text-white px-4 rounded-xl font-bold"><Icons.Plus/></button></div>} 
+                    </div> 
+                </div> 
+            ); 
+        };
         
         const LootModal = ({ members, activeMemberId, setActiveMemberId, lootList, onClose, onAdd, onEdit, onDelete, setPreviewImage, isLocked, rate }) => {
             return (
@@ -810,7 +978,9 @@
                             ))}
                         </div>
                         <div className="flex-1 overflow-y-auto space-y-4 mt-2 p-1">
-                            {lootList.length > 0 ? lootList.map(item => (
+                            {lootList.length > 0 ? lootList.map(item => {
+                                const subInfo = SUB_CATEGORY_OPTIONS.find(c => c.id === item.subCategory) || SUB_CATEGORY_OPTIONS[5];
+                                return (
                                 <div key={item.id} className="bg-white p-4 rounded-3xl shadow-sm border border-stone-100 relative mb-4">
                                     {item.fileUrl && (
                                         <div className="w-full aspect-square rounded-2xl overflow-hidden mb-3 border border-stone-100 shadow-inner" onClick={() => setPreviewImage(item.fileUrl)}>
@@ -818,7 +988,9 @@
                                         </div>
                                     )}
                                     <div className="flex justify-between items-start mb-1">
-                                        <h3 className="font-bold text-stone-800 text-lg">{item.title}</h3>
+                                        <h3 className="font-bold text-stone-800 text-lg flex items-center gap-1">
+                                            {item.title} 
+                                        </h3>
                                         <div className="flex gap-2 shrink-0">
                                             {!isLocked && (
                                                 <>
@@ -828,7 +1000,10 @@
                                             )}
                                         </div>
                                     </div>
-                                    <div className="flex items-baseline gap-2 mb-2">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <span className="text-xs font-bold text-pink-500 bg-pink-50 px-2 py-0.5 rounded-md border border-pink-100">{subInfo.emoji} {subInfo.label}</span>
+                                    </div>
+                                    <div className="flex items-baseline gap-2 mb-2 mt-1">
                                         <span className="text-2xl font-extrabold text-pink-500">{item.currency} {Number(item.cost).toLocaleString()}</span>
                                         {item.currency !== 'TWD' && <span className="text-xs text-stone-400 font-medium">≈ TWD {Math.round(item.cost * rate).toLocaleString()}</span>}
                                     </div>
@@ -838,7 +1013,8 @@
                                         </p>
                                     )}
                                 </div>
-                            )) : (
+                                );
+                            }) : (
                                 <div className="flex flex-col items-center justify-center py-20 opacity-40">
                                     <Icons.ShoppingBag />
                                     <p className="mt-2 text-sm font-bold">還沒有買東西喔</p>
@@ -902,7 +1078,6 @@
                 return {res, totalPendingForeign, totalPendingTWD};
             }, [itinerary, shoppingList, members, currency]);
 
-            // Settlement Logic V84 (UI Tweaks)
             const settlementStats = useMemo(() => {
                 const data = {};
                 members.forEach(m => data[m.id] = { history: 0, paid_net: 0, shared_net: 0 });
@@ -916,18 +1091,16 @@
                         if (rate > 0) costInTWD = cost * rate;
                     }
 
-                    // Define Participants
                     const payers = isShopping ? (item.payerId ? [item.payerId] : []) : (item.payerIds || []);
                     let beneficiaries = [];
                     if (item.category === 'loot') {
-                        beneficiaries = payers; // Loot implies personal cost
+                        beneficiaries = payers;
                     } else {
                         const sharedIds = item.sharedInvolvedIds || [];
                         if (sharedIds.length === 0) beneficiaries = members.map(m => m.id);
                         else beneficiaries = sharedIds;
                     }
 
-                    // 1. History (Total Consumption) - Always Add
                     if (beneficiaries.length > 0) {
                         const costPerPerson = costInTWD / beneficiaries.length;
                         beneficiaries.forEach(bid => {
@@ -935,13 +1108,10 @@
                         });
                     }
 
-                    // 2. Debt Calculation (Lent/Owe) - Skip if Paid or Loot
                     if (!item.isPaid && item.category !== 'loot') {
-                        // Add to Payer's Credit (Lent)
                         payers.forEach(pid => {
                             if (data[pid]) data[pid].paid_net += (costInTWD / payers.length);
                         });
-                        // Add to Beneficiary's Debt (Owe)
                         if (beneficiaries.length > 0) {
                             const costPerPerson = costInTWD / beneficiaries.length;
                             beneficiaries.forEach(bid => {
@@ -954,7 +1124,6 @@
                 itinerary.forEach(i => processSettlement(i));
                 shoppingList.forEach(s => { if (s.type === 'split') processSettlement(s, true); });
 
-                // Calculate Net Lent/Owe
                 const finalData = {};
                 Object.keys(data).forEach(id => {
                     const net = data[id].paid_net - data[id].shared_net;
@@ -965,7 +1134,6 @@
                     };
                 });
 
-                // Generate Transfer Suggestions
                 const debtors = [];
                 const creditors = [];
                 Object.entries(finalData).forEach(([id, val]) => {
@@ -996,16 +1164,76 @@
                 return { data: finalData, suggestions };
             }, [itinerary, shoppingList, members, currency, rate]);
 
-            // Helper for Editing Rate
+            // --- 個人消費帳務分析 (Pie Chart) ---
+            const memberExpenseAnalysis = useMemo(() => {
+                if (!accountingMember) return { pieData: [], total: 0, conicGradient: '' };
+                const breakdown = {};
+                let totalTWD = 0;
+
+                const processForPie = (item, isShopping) => {
+                    let cost = Number(item.cost) || 0;
+                    if(cost === 0) return;
+                    let costInTWD = item.currency === 'TWD' ? cost : cost * rate;
+
+                    let beneficiaries = [];
+                    if (item.category === 'loot') beneficiaries = item.payerIds || [];
+                    else {
+                        const sIds = item.sharedInvolvedIds || [];
+                        beneficiaries = sIds.length > 0 ? sIds : members.map(m=>m.id);
+                    }
+
+                    if (beneficiaries.includes(accountingMember.id)) {
+                        const myShare = costInTWD / beneficiaries.length;
+                        totalTWD += myShare;
+                        
+                        let catKey = item.category;
+                        if (item.category === 'loot' || isShopping) {
+                            catKey = item.subCategory || 'other';
+                        }
+                        if (catKey === 'checklist') return; 
+
+                        if (!breakdown[catKey]) breakdown[catKey] = 0;
+                        breakdown[catKey] += myShare;
+                    }
+                };
+
+                itinerary.forEach(i => processForPie(i, false));
+                shoppingList.forEach(s => { if(s.type === 'split') processForPie(s, true); });
+
+                if (totalTWD === 0) return { pieData: [], total: 0, conicGradient: '' };
+                
+                const pieData = Object.keys(breakdown).map(catKey => {
+                    const info = EXPENSE_CATEGORIES[catKey] || EXPENSE_CATEGORIES['other'];
+                    return {
+                        id: catKey,
+                        label: info.label,
+                        emoji: info.emoji,
+                        color: info.color,
+                        amount: breakdown[catKey],
+                        percentage: (breakdown[catKey] / totalTWD) * 100
+                    };
+                }).sort((a,b) => b.amount - a.amount);
+
+                const gradientStops = [];
+                let currentPercent = 0;
+                pieData.forEach(slice => {
+                    gradientStops.push(`${slice.color} ${currentPercent}% ${currentPercent + slice.percentage}%`);
+                    currentPercent += slice.percentage;
+                });
+
+                return { pieData, total: totalTWD, conicGradient: `conic-gradient(${gradientStops.join(', ')})` };
+            }, [itinerary, shoppingList, members, accountingMember, rate]);
+
+
             const [isEditingRate, setIsEditingRate] = useState(false);
             const [tempRate, setTempRate] = useState(rate);
 
             return ( 
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}> 
-                    <div className="bg-white w-full max-w-md rounded-t-3xl shadow-2xl p-6 h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}> 
+                    <div className="bg-[#FDFBF7] w-full max-w-md rounded-t-3xl shadow-2xl p-6 h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}> 
                         {accountingMember ? ( 
                             <div className="flex-1 overflow-y-auto"> 
-                                <div className="flex justify-between items-center mb-4">
+                                <div className="flex justify-between items-center mb-4 sticky top-0 bg-[#FDFBF7] py-2 z-10 border-b border-stone-100">
                                     <button onClick={()=>window.history.back()} className="text-sm text-stone-500 flex items-center gap-1"><Icons.ArrowLeft/> 返回總覽</button>
                                     {!isLocked && (
                                         <button onClick={() => handleBatchSettle(accountingMember.id)} className="text-sm bg-emerald-100 text-emerald-600 px-3 py-1.5 rounded-full font-bold flex items-center gap-1 active:scale-95 transition-transform">
@@ -1013,45 +1241,79 @@
                                         </button>
                                     )}
                                 </div>
-                                <div className="bg-stone-50 p-4 rounded-2xl mb-4 text-center border border-stone-100">
-                                    <div className="text-3xl mb-2">{accountingMember.emoji}</div>
-                                    <h2 className="font-bold text-lg text-stone-700">{accountingMember.name} 的消費明細</h2>
-                                    <div className="mt-2 flex flex-col items-center justify-center gap-1">
-                                        <span className="text-xs text-stone-500">總計墊付：</span>
-                                        {Object.entries(stats.res[accountingMember.id].totals).map(([curr, amt]) => (
-                                            <div key={curr} className="font-bold text-theme-main text-lg leading-tight">
-                                                {curr} {Math.round(amt).toLocaleString()}
-                                            </div>
-                                        ))}
+                                <div className="bg-white p-4 rounded-3xl mb-4 text-center border border-stone-100 shadow-sm relative overflow-hidden">
+                                    <div className="absolute top-2 right-2 text-3xl opacity-20">{accountingMember.emoji}</div>
+                                    <h2 className="font-bold text-lg text-stone-700 mb-1">{accountingMember.name} 的墊付狀態</h2>
+                                    <div className="flex flex-col items-center justify-center gap-1">
+                                        {Object.keys(stats.res[accountingMember.id].totals).length === 0 ? (
+                                            <span className="text-sm text-stone-400 font-bold">目前無墊付項目</span>
+                                        ) : (
+                                            Object.entries(stats.res[accountingMember.id].totals).map(([curr, amt]) => (
+                                                <div key={curr} className="font-extrabold text-theme-main text-2xl leading-tight">
+                                                    {curr} {Math.round(amt).toLocaleString()}
+                                                </div>
+                                            ))
+                                        )}
                                     </div>
                                 </div> 
-                                <div className="space-y-2"> 
-                                    {stats.res[accountingMember.id].details.map((item, idx) => ( 
-                                        <div key={idx} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${item.isPaid ? 'bg-stone-50 border-stone-200 opacity-60' : 'bg-white border-stone-100 shadow-sm'}`}>
-                                            <div className="flex-1 cursor-pointer" onClick={() => onEditItem(item, item._isShopping)}>
-                                                <div className="font-bold text-stone-700 text-sm mb-0.5">{item.title || item.text}</div>
-                                                <div className="text-xs text-stone-400">
+
+                                {/* 帳務分析圓餅圖區塊 */}
+                                {memberExpenseAnalysis.total > 0 && (
+                                    <div className="bg-white p-4 rounded-3xl mb-5 shadow-sm border border-stone-100">
+                                        <h3 className="text-xs font-bold text-stone-400 mb-3 text-center tracking-wider">個人總花費佔比分析 (TWD)</h3>
+                                        <div className="flex items-center gap-5">
+                                            <div className="relative w-24 h-24 rounded-full shadow-sm shrink-0 flex items-center justify-center" style={{ background: memberExpenseAnalysis.conicGradient }}>
+                                                <div className="absolute w-16 h-16 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
+                                                    <span className="text-[9px] text-stone-400 font-bold">TOTAL</span>
+                                                    <span className="font-bold text-stone-700 text-xs">${Math.round(memberExpenseAnalysis.total).toLocaleString()}</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex-1 grid grid-cols-2 gap-x-2 gap-y-3">
+                                                {memberExpenseAnalysis.pieData.map(d => (
+                                                    <div key={d.id} className="flex items-center gap-1.5">
+                                                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }}></div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] text-stone-600 font-bold leading-tight">{d.emoji} {d.label} {Math.round(d.percentage)}%</span>
+                                                            <span className="text-[9px] text-stone-400 leading-none">${Math.round(d.amount).toLocaleString()}</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <h3 className="text-xs font-bold text-stone-400 mb-2 pl-2 tracking-wider">經手帳目明細</h3>
+                                <div className="space-y-2 pb-4"> 
+                                    {stats.res[accountingMember.id].details.map((item, idx) => {
+                                        const subInfo = (item.category === 'loot' || item._isShopping) ? (SUB_CATEGORY_OPTIONS.find(c=>c.id===item.subCategory) || SUB_CATEGORY_OPTIONS[5]) : null;
+                                        return ( 
+                                        <div key={idx} className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${item.isPaid ? 'bg-stone-50 border-stone-200 opacity-60' : 'bg-white border-stone-100 shadow-sm'}`}>
+                                            <div className="flex-1 cursor-pointer pr-2" onClick={() => onEditItem(item, item._isShopping)}>
+                                                <div className="font-bold text-stone-700 text-sm mb-0.5 truncate">{item.title || item.text}</div>
+                                                <div className="text-[10px] text-stone-400 flex items-center gap-1">
                                                     {item._isShopping 
-                                                        ? <span className="text-emerald-500 font-bold">🛒 購物分帳</span> 
+                                                        ? <span className="text-emerald-500 font-bold bg-emerald-50 px-1 rounded">🛒 {subInfo.emoji} {subInfo.label}分帳</span> 
                                                         : item.category === 'loot' 
-                                                            ? '戰利品' 
+                                                            ? <span className="text-pink-500 font-bold bg-pink-50 px-1 rounded">🎁 {subInfo.emoji} 戰利品</span> 
                                                             : `Day ${item.day} • ${item.category === 'transport' ? '交通' : item.category === 'hotel' ? '住宿' : '行程'}`
                                                     }
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-3 shrink-0">
                                                 <div className="text-right">
                                                     <div className={`font-bold text-sm ${item.isPaid ? 'text-stone-400 line-through' : 'text-theme-main'}`}>{item.currency} {Number(item.cost).toLocaleString()}</div>
-                                                    {item.currency !== 'TWD' && (<div className="text-xs text-stone-400">≈ TWD {Math.floor(item.cost * rate).toLocaleString()}</div>)}
+                                                    {item.currency !== 'TWD' && (<div className="text-[10px] text-stone-400">≈ TWD {Math.floor(item.cost * rate).toLocaleString()}</div>)}
                                                 </div>
                                                 {item.category !== 'loot' && (
-                                                    <button onClick={(e) => { e.stopPropagation(); if(isLocked) return alert("行程已鎖定"); onTogglePaid(item, item._isShopping); }} className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${item.isPaid ? 'bg-green-500 border-green-500 text-white' : 'bg-white border-stone-300 text-stone-200 hover:border-theme-main'}`}>
+                                                    <button onClick={(e) => { e.stopPropagation(); if(isLocked) return alert("行程已鎖定"); onTogglePaid(item, item._isShopping); }} className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${item.isPaid ? 'bg-green-500 border-green-500 text-white shadow-inner' : 'bg-white border-stone-200 text-stone-200 hover:border-theme-main'}`}>
                                                         {item.isPaid ? <Icons.Check/> : <Icons.Circle/>}
                                                     </button>
                                                 )}
                                             </div>
                                         </div> 
-                                    ))} 
+                                        )
+                                    })} 
                                 </div> 
                             </div> 
                         ) : ( 
@@ -1061,34 +1323,34 @@
                                     <div className="flex gap-2">
                                         <button onClick={() => setIsEditingRate(!isEditingRate)} className="px-3 py-1.5 bg-yellow-50 text-yellow-600 rounded-full active:scale-95 flex items-center gap-1 border border-yellow-200 shadow-sm">
                                             <span className="text-lg">💱</span>
-                                            <span className="text-xs font-bold">匯率: {rate}</span>
+                                            <span className="text-[10px] font-bold">匯率: {rate}</span>
                                         </button>
                                         <button onClick={onClose} className="text-lg">❌</button>
                                     </div>
                                 </div> 
 
                                 {isEditingRate && (
-                                    <div className="bg-yellow-50 p-3 rounded-xl mb-3 flex items-center gap-2 border border-yellow-100 animate-fade-in">
+                                    <div className="bg-yellow-50 p-3 rounded-xl mb-3 flex items-center gap-2 border border-yellow-100 animate-fade-in mt-3">
                                         <span className="text-xs font-bold text-yellow-600">匯率設定:</span>
-                                        <input type="number" step="0.0001" value={tempRate} onChange={e => setTempRate(e.target.value)} className="flex-1 p-1 rounded border border-yellow-200 text-sm" />
-                                        <button onClick={() => { onRateChange(tempRate); setIsEditingRate(false); }} className="text-xs bg-yellow-500 text-white px-3 py-1.5 rounded-lg font-bold">儲存</button>
+                                        <input type="number" step="0.0001" value={tempRate} onChange={e => setTempRate(e.target.value)} className="flex-1 p-2 rounded-lg border border-yellow-200 text-sm outline-none focus:ring-2 focus:ring-yellow-300" />
+                                        <button onClick={() => { onRateChange(tempRate); setIsEditingRate(false); }} className="text-xs bg-yellow-500 text-white px-4 py-2 rounded-lg font-bold shadow-sm">儲存</button>
                                     </div>
                                 )}
 
-                                <div className="flex p-1 bg-stone-100 rounded-xl mb-4">
-                                    <button onClick={() => setMode('overview')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${mode==='overview' ? 'bg-white shadow text-theme-main' : 'text-stone-400'}`}>消費明細</button>
-                                    <button onClick={() => setMode('report')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${mode==='report' ? 'bg-white shadow text-theme-main' : 'text-stone-400'}`}>結算報表</button>
+                                <div className="flex p-1 bg-stone-100 rounded-xl mb-4 mt-3">
+                                    <button onClick={() => setMode('overview')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${mode==='overview' ? 'bg-white shadow text-theme-main' : 'text-stone-400'}`}>各人墊付總覽</button>
+                                    <button onClick={() => setMode('report')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${mode==='report' ? 'bg-white shadow text-theme-main' : 'text-stone-400'}`}>全團結算報表</button>
                                 </div>
 
                                 {mode === 'overview' ? (
                                     <>
                                         <div className="text-center py-6 bg-sky-50 rounded-2xl mb-4 border border-sky-100">
-                                            <p className="text-stone-400 text-xs font-bold tracking-wider mb-1">全體未結清墊付額</p>
+                                            <p className="text-stone-400 text-[10px] font-bold tracking-widest mb-1 uppercase">全體未結清墊付總額</p>
                                             <div className="flex flex-col items-center">
-                                                <p className="text-4xl font-bold text-theme-main">{currency} {(currency === 'TWD' ? stats.totalPendingTWD : stats.totalPendingForeign).toLocaleString()}</p>
+                                                <p className="text-4xl font-extrabold text-theme-main">{currency} {(currency === 'TWD' ? stats.totalPendingTWD : stats.totalPendingForeign).toLocaleString()}</p>
                                                 {currency !== 'TWD' && stats.totalPendingTWD > 0 && (
-                                                    <p className="text-lg font-bold text-stone-500 flex items-center gap-1">
-                                                        <span className="text-xs bg-stone-200 px-1 rounded">TWD</span> {stats.totalPendingTWD.toLocaleString()}
+                                                    <p className="text-base font-bold text-stone-500 flex items-center gap-1 mt-1">
+                                                        <span className="text-[10px] bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded">TWD</span> {Math.round(stats.totalPendingTWD).toLocaleString()}
                                                     </p>
                                                 )}
                                             </div>
@@ -1099,71 +1361,76 @@
                                                 if (data.total === 0) return null; 
                                                 const isAllSettled = data.pendingTotal === 0; 
                                                 return ( 
-                                                    <div key={m.id} onClick={()=>{setAccountingMember(m);}} className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer ${isAllSettled ? 'bg-stone-50 border-stone-200' : 'bg-white border-stone-100 hover:bg-stone-50 shadow-sm'}`}>
+                                                    <div key={m.id} onClick={()=>{setAccountingMember(m);}} className={`flex items-center justify-between p-4 rounded-2xl border transition-all cursor-pointer ${isAllSettled ? 'bg-stone-50 border-stone-200' : 'bg-white border-stone-100 hover:bg-stone-50 shadow-sm'}`}>
                                                         <div className="flex items-center gap-3 flex-1">
                                                             <div className={`w-12 h-12 ${m.color} rounded-full text-white flex items-center justify-center shadow-md text-2xl flex-shrink-0`}>{m.emoji}</div>
-                                                            <div className="flex-shrink-0"><span className="font-bold text-stone-800 text-lg block">{m.name}</span><span className="text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">消費明細 ></span></div>
+                                                            <div className="flex-shrink-0">
+                                                                <span className="font-bold text-stone-800 text-base block">{m.name}</span>
+                                                                <span className="text-[10px] text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full mt-1 inline-block">消費分析與明細 ➔</span>
+                                                            </div>
                                                         </div>
                                                         <div className="text-right flex flex-col items-end justify-center min-w-[100px]"> 
-                                                            {isAllSettled ? (<span className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full font-bold">已結清</span>) : ( 
+                                                            {isAllSettled ? (<span className="text-xs bg-green-100 text-green-600 px-3 py-1 rounded-full font-bold">已結清</span>) : ( 
                                                                 <>
-                                                                    <div className={`font-bold text-lg text-theme-main whitespace-nowrap`}>{currency} {(currency === 'TWD' ? data.pendingTWD : data.pendingForeign).toLocaleString()}</div>
-                                                                    {currency !== 'TWD' && data.pendingTWD > 0 && <div className="text-sm font-bold text-stone-500 whitespace-nowrap">TWD {data.pendingTWD.toLocaleString()}</div>}
+                                                                    <div className={`font-extrabold text-lg text-theme-main whitespace-nowrap`}>{currency} {(currency === 'TWD' ? data.pendingTWD : data.pendingForeign).toLocaleString()}</div>
+                                                                    {currency !== 'TWD' && data.pendingTWD > 0 && <div className="text-xs font-bold text-stone-500 whitespace-nowrap">TWD {Math.round(data.pendingTWD).toLocaleString()}</div>}
                                                                 </> 
                                                             )} 
                                                         </div>
                                                     </div> 
                                                 ); 
-                                            }) : <div className="text-center text-stone-400 py-10">請先至首頁建立參與者</div>} 
+                                            }) : <div className="text-center text-stone-400 py-10 font-bold text-sm">請先至首頁右上角建立參與者</div>} 
                                         </div>
                                     </>
                                 ) : (
                                     <div className="flex-1 overflow-y-auto flex flex-col">
-                                        <div className="bg-stone-50 p-4 rounded-xl border border-stone-100 mb-4">
-                                            <h3 className="font-bold text-sm text-stone-700 mb-3 text-center">轉帳建議 (只計算未結清項目)</h3>
+                                        <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 mb-4 shadow-sm">
+                                            <h3 className="font-bold text-xs text-emerald-700 mb-3 text-center tracking-wider">最佳轉帳建議 (僅計算未結清項目)</h3>
                                             {settlementStats.suggestions.length > 0 ? (
                                                 <div className="space-y-2">
                                                     {settlementStats.suggestions.map((s, i) => (
-                                                        <div key={i} className="bg-white p-3 rounded-lg border border-l-4 border-l-emerald-500 shadow-sm text-sm font-bold text-stone-700 flex justify-between">
-                                                            {s} <span className="text-xs text-stone-400">TWD</span>
+                                                        <div key={i} className="bg-white p-3 rounded-xl border border-emerald-200 shadow-sm text-sm font-bold text-stone-700 flex justify-between items-center">
+                                                            <span className="flex items-center gap-2">💸 {s}</span> <span className="text-[10px] text-emerald-500 bg-emerald-50 px-2 py-1 rounded-full">TWD</span>
                                                         </div>
                                                     ))}
                                                 </div>
                                             ) : (
-                                                <div className="text-center text-stone-400 text-xs py-2">目前沒有需要轉帳的款項</div>
+                                                <div className="text-center text-emerald-600 text-xs py-2 font-bold opacity-70">目前帳務平衡，無需轉帳 🎉</div>
                                             )}
                                         </div>
 
-                                        <table className="w-full text-sm">
-                                            <thead>
-                                                <tr className="border-b text-stone-400 text-xs">
-                                                    <th className="pb-2 text-left w-[30%] pl-12">成員</th>
-                                                    <th className="pb-2 text-right w-[24%]">總消費</th>
-                                                    <th className="pb-2 text-right w-[23%]">代墊</th>
-                                                    <th className="pb-2 text-right w-[23%] pr-3">應付</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-stone-100">
-                                                {members.map(m => {
-                                                    const d = settlementStats.data[m.id];
-                                                    return (
-                                                        <tr key={m.id}>
-                                                            <td className="py-3 pl-2">
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className={`w-8 h-8 ${m.color} rounded-full text-white flex items-center justify-center text-xs shadow-sm shrink-0`}>{m.emoji}</div>
-                                                                    <span className="font-bold text-stone-700 text-sm truncate">{m.name}</span>
-                                                                </div>
-                                                            </td>
-                                                            <td className="py-3 text-right text-stone-500 font-medium">{Math.round(d.history).toLocaleString()}</td>
-                                                            <td className="py-3 text-right text-emerald-500 font-bold">{Math.round(d.lent).toLocaleString()}</td>
-                                                            <td className="py-3 text-right pr-1 text-red-500 font-bold">{Math.round(d.owe).toLocaleString()}</td>
-                                                        </tr>
-                                                    )
-                                                })}
-                                            </tbody>
-                                        </table>
-                                        <div className="text-[10px] text-center text-stone-300 mt-4 pb-4">
-                                            * 報表統一以 TWD (台幣) 計算<br/>
+                                        <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden mb-4">
+                                            <table className="w-full text-sm">
+                                                <thead>
+                                                    <tr className="bg-stone-50 border-b border-stone-100 text-stone-400 text-[10px] uppercase tracking-wider">
+                                                        <th className="py-3 text-left pl-4 w-[30%]">成員</th>
+                                                        <th className="py-3 text-right w-[23%]">總消費(TWD)</th>
+                                                        <th className="py-3 text-right w-[23%]">總代墊</th>
+                                                        <th className="py-3 text-right w-[24%] pr-4">應轉付</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-stone-50">
+                                                    {members.map(m => {
+                                                        const d = settlementStats.data[m.id];
+                                                        return (
+                                                            <tr key={m.id} className="hover:bg-stone-50/50">
+                                                                <td className="py-3 pl-4">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className={`w-6 h-6 ${m.color} rounded-full text-white flex items-center justify-center text-[10px] shadow-sm shrink-0`}>{m.emoji}</div>
+                                                                        <span className="font-bold text-stone-700 text-xs truncate max-w-[60px]">{m.name}</span>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="py-3 text-right text-stone-500 font-bold text-xs">{Math.round(d.history).toLocaleString()}</td>
+                                                                <td className="py-3 text-right text-emerald-500 font-bold text-xs">{Math.round(d.lent).toLocaleString()}</td>
+                                                                <td className="py-3 text-right pr-4 text-red-500 font-bold text-xs">{Math.round(d.owe).toLocaleString()}</td>
+                                                            </tr>
+                                                        )
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div className="text-[10px] text-center text-stone-400 pb-4 leading-relaxed font-medium">
+                                            * 報表統一以 TWD (台幣) 進行結算<br/>
                                             * 當前匯率: {rate}
                                         </div>
                                     </div>
@@ -1183,6 +1450,7 @@
             const [currentTrip, setCurrentTrip] = useState(null);
             const [itinerary, setItinerary] = useState([]);
             const [luggageList, setLuggageList] = useState([]); 
+            const [globalLuggage, setGlobalLuggage] = useState([]); // V85 Global Luggage
             const [members, setMembers] = useState([]); 
             const [shoppingList, setShoppingList] = useState([]); 
             const [selectedDay, setSelectedDay] = useState(1);
@@ -1198,6 +1466,8 @@
                 isExportModalOpen: false,
                 isMemberModalOpen: false,
                 isLuggageModalOpen: false,
+                isGlobalLuggageOpen: false, // V85
+                isLuggagePickerOpen: false, // V85
                 showAccounting: false,
                 isLootModalOpen: false,
                 isShoppingListOpen: false,
@@ -1217,6 +1487,8 @@
             const [isExportModalOpen, setIsExportModalOpen] = useState(false);
             const [isMemberModalOpen, setIsMemberModalOpen] = useState(false); 
             const [isLuggageModalOpen, setIsLuggageModalOpen] = useState(false); 
+            const [isGlobalLuggageOpen, setIsGlobalLuggageOpen] = useState(false); // V85
+            const [isLuggagePickerOpen, setIsLuggagePickerOpen] = useState(false); // V85
             const [showAccounting, setShowAccounting] = useState(false);
             const [isLootModalOpen, setIsLootModalOpen] = useState(false); 
             const [activeLootMember, setActiveLootMember] = useState(null); 
@@ -1244,11 +1516,11 @@
             useEffect(() => {
                 uiState.current = {
                     viewMode, isTripModalOpen, isItemModalOpen, isMoveModalOpen, isLockModalOpen,
-                    isExportModalOpen, isMemberModalOpen, isLuggageModalOpen, showAccounting,
+                    isExportModalOpen, isMemberModalOpen, isLuggageModalOpen, isGlobalLuggageOpen, isLuggagePickerOpen, showAccounting,
                     isLootModalOpen, isShoppingListOpen, isShoppingItemModalOpen, checkPromptItem,
                     previewImage, selectMode, reorderMode, accountingMember
                 };
-            }, [viewMode, isTripModalOpen, isItemModalOpen, isMoveModalOpen, isLockModalOpen, isExportModalOpen, isMemberModalOpen, isLuggageModalOpen, showAccounting, isLootModalOpen, isShoppingListOpen, isShoppingItemModalOpen, checkPromptItem, previewImage, selectMode, reorderMode, accountingMember]);
+            }, [viewMode, isTripModalOpen, isItemModalOpen, isMoveModalOpen, isLockModalOpen, isExportModalOpen, isMemberModalOpen, isLuggageModalOpen, isGlobalLuggageOpen, isLuggagePickerOpen, showAccounting, isLootModalOpen, isShoppingListOpen, isShoppingItemModalOpen, checkPromptItem, previewImage, selectMode, reorderMode, accountingMember]);
 
             // Smart Navigation Helper
             const openModal = (setter) => {
@@ -1257,16 +1529,14 @@
             };
 
             const closeModal = () => {
-                window.history.back(); // This triggers popstate, which closes the modal
+                window.history.back(); 
             };
 
-            // Image Preview Helper
             const handlePreviewImage = (url) => {
                 if(url) window.history.pushState({ preview: true }, '');
                 setPreviewImage(url);
             }
 
-            // Mode Helper
             const toggleMode = (setter, val) => {
                 if(val) window.history.pushState({ mode: true }, '');
                 else if (!val && (selectMode || reorderMode)) window.history.back(); 
@@ -1298,7 +1568,9 @@
                     else if (s.accountingMember) setAccountingMember(null);
                     else if (s.isExportModalOpen) setIsExportModalOpen(false);
                     else if (s.isMemberModalOpen) setIsMemberModalOpen(false);
+                    else if (s.isLuggagePickerOpen) setIsLuggagePickerOpen(false);
                     else if (s.isLuggageModalOpen) setIsLuggageModalOpen(false);
+                    else if (s.isGlobalLuggageOpen) setIsGlobalLuggageOpen(false);
                     else if (s.showAccounting) setShowAccounting(false);
                     else if (s.isLootModalOpen) setIsLootModalOpen(false);
                     else if (s.isShoppingListOpen) setIsShoppingListOpen(false);
@@ -1312,7 +1584,6 @@
                 return () => window.removeEventListener('popstate', handlePopState);
             }, []);
 
-            // Auto-Scroll Active Day Button
             useEffect(() => {
                 if (daysContainerRef.current) {
                     const activeBtn = daysContainerRef.current.children[selectedDay - 1];
@@ -1322,7 +1593,6 @@
                 }
             }, [selectedDay]);
 
-            // Swipe Logic Refs
             const touchStartX = useRef(0);
             const touchEndX = useRef(0);
             const touchStartY = useRef(0);
@@ -1331,11 +1601,17 @@
 
             useEffect(() => {
                 if(!user) return;
-                const unsubscribe = db.collection('trips_v14').orderBy('startDate', 'desc').onSnapshot(snapshot => {
+                const unsubscribeTrips = db.collection('trips_v14').orderBy('startDate', 'desc').onSnapshot(snapshot => {
                     setTrips(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
                     setIsLoading(false); 
                 });
-                return () => unsubscribe();
+                
+                // V85: Fetch Global Luggage Templates
+                const unsubscribeGlobalLuggage = db.collection('global_luggage_templates_v1').orderBy('createdAt').onSnapshot(snapshot => {
+                    setGlobalLuggage(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                });
+
+                return () => { unsubscribeTrips(); unsubscribeGlobalLuggage(); };
             }, [user]);
 
             useEffect(() => {
@@ -1381,17 +1657,16 @@
                 setEditingItem(null); 
             };
             const handleDeleteTrip = async (id) => {
-                if(window.confirm('確定刪除整趟旅遊？')) { 
+                customConfirm('確定刪除整趟旅遊？', async () => { 
                     await db.collection('trips_v14').doc(id).delete(); 
                     closeModal(); 
-                }
+                });
             };
             const handleSaveItem = async (itemData) => {
                 const ref = db.collection('trips_v14').doc(currentTrip.id).collection('items');
                 if (!itemData.customOrder) itemData.customOrder = Date.now();
                 
                 let newItemId = itemData.id;
-
                 if (itemData.id) {
                     await ref.doc(itemData.id).update(itemData);
                 } else {
@@ -1410,11 +1685,11 @@
             };
             
             const handleDeleteItem = async (id, closeAfterDelete = true) => { 
-                if(window.confirm('確定刪除？')) {
+                customConfirm('確定刪除此行程嗎？', async () => {
                     const docRef = db.collection('trips_v14').doc(currentTrip.id).collection('items').doc(id);
                     await docRef.delete();
                     if(closeAfterDelete) closeModal();
-                }
+                });
             };
 
             const togglePaid = async (item) => { await db.collection('trips_v14').doc(currentTrip.id).collection('items').doc(item.id).update({ isPaid: !item.isPaid }); };
@@ -1436,10 +1711,10 @@
             };
 
             const handleDeleteShoppingItem = async (id, closeAfterDelete = false) => {
-                if (window.confirm("確定刪除此購物項目？")) {
+                customConfirm("確定刪除此購物項目？", async () => {
                     await db.collection('trips_v14').doc(currentTrip.id).collection('shopping_list').doc(id).delete();
                     if(closeAfterDelete) closeModal(); 
-                }
+                });
             };
 
             const handleCheckShoppingItem = (item) => {
@@ -1452,7 +1727,7 @@
                 let confirmMsg = "確定要恢復為未購買狀態嗎？";
                 if (item.linkedLootId) confirmMsg = "此項目已轉為戰利品，恢復將同步刪除該筆戰利品紀錄，確定嗎？";
 
-                if (window.confirm(confirmMsg)) {
+                customConfirm(confirmMsg, async () => {
                     if (item.linkedLootId) {
                         try {
                             await db.collection('trips_v14').doc(currentTrip.id).collection('items').doc(item.linkedLootId).delete();
@@ -1466,7 +1741,7 @@
                         payerId: firebase.firestore.FieldValue.delete(),
                         linkedLootId: firebase.firestore.FieldValue.delete(),
                     });
-                }
+                });
             };
 
             const handleShoppingCheckSelection = async (option) => {
@@ -1486,6 +1761,7 @@
                             fileUrl: item.fileUrl,
                             memo: item.memo,
                             category: 'loot',
+                            subCategory: item.subCategory || 'other',
                             day: selectedDay,
                             payerIds: [] 
                         });
@@ -1516,7 +1792,7 @@
 
             const handleAddMember = async (memberData) => { await db.collection('trips_v14').doc(currentTrip.id).collection('members').add(memberData); };
             const handleDeleteMember = async (id) => {
-                if(window.confirm('刪除此參與者？相關的分帳紀錄也會被清除喔！')) {
+                customConfirm('刪除此參與者？相關的分帳紀錄也會被清除喔！', async () => {
                     const batch = db.batch();
                     const itemsRef = db.collection('trips_v14').doc(currentTrip.id).collection('items');
                     itinerary.forEach(item => {
@@ -1534,8 +1810,10 @@
                     });
                     await batch.commit();
                     await db.collection('trips_v14').doc(currentTrip.id).collection('members').doc(id).delete();
-                }
+                });
             };
+            
+            // Luggage Handlers
             const handleAddLuggage = async (text) => {
                 if(!text) return;
                 const checks = {}; 
@@ -1546,7 +1824,18 @@
                 const luggage = luggageList.find(l => l.id === luggageId); if(!luggage) return;
                 await db.collection('trips_v14').doc(currentTrip.id).collection('luggage').doc(luggageId).update({ [`checks.${memberId}`]: !currentVal });
             };
-            const handleDeleteLuggage = async (id) => { if(window.confirm('刪除此項目？')) await db.collection('trips_v14').doc(currentTrip.id).collection('luggage').doc(id).delete(); };
+            const handleDeleteLuggage = async (id) => { 
+                await db.collection('trips_v14').doc(currentTrip.id).collection('luggage').doc(id).delete(); 
+            };
+
+            // Global Luggage Handlers
+            const handleAddGlobalLuggage = async (text) => {
+                if(!text) return;
+                await db.collection('global_luggage_templates_v1').add({ text, createdAt: Date.now() });
+            };
+            const handleDeleteGlobalLuggage = async (id) => {
+                await db.collection('global_luggage_templates_v1').doc(id).delete();
+            }
 
             const handleReorder = async (item, direction) => {
                 if (currentTrip.isLocked) { alert("行程已鎖定"); return; }
@@ -1595,13 +1884,13 @@
 
             const handleAddLoot = () => {
                 if(!activeLootMember) return alert("請先建立成員");
-                setEditingItem({ category: 'loot', payerIds: [activeLootMember], day: selectedDay, images: [] });
+                setEditingItem({ category: 'loot', subCategory: 'clothing', payerIds: [activeLootMember], day: selectedDay, images: [] });
                 setForcePayerSelectInItemModal(false);
                 openModal(setIsItemModalOpen);
             };
 
             const handleBatchSettle = async (memberId) => {
-                if(window.confirm('確定要將此成員「墊付」的所有款項標記為已結清嗎？')) {
+                customConfirm('確定要將此成員「墊付」的所有款項標記為已結清嗎？', async () => {
                     const batch = db.batch();
                     const itemsRef = db.collection('trips_v14').doc(currentTrip.id).collection('items');
                     const shoppingRef = db.collection('trips_v14').doc(currentTrip.id).collection('shopping_list');
@@ -1625,7 +1914,7 @@
                     if(count > 0) {
                         await batch.commit();
                     }
-                }
+                });
             };
 
             const handleRateChange = async (newRate) => {
@@ -1658,6 +1947,7 @@
             if (isLoading) {
                 return (
                     <div className="min-h-screen flex flex-col items-center justify-center bg-white fade-out-bg">
+                        <CustomAlertConfirm />
                         <div className="text-6xl mb-4 bounce">🧳</div>
                         <p className="text-stone-400 text-sm font-bold tracking-widest animate-pulse">回憶讀取中...</p>
                     </div>
@@ -1667,7 +1957,10 @@
             if (viewMode === 'tripList') {
                 return (
                     <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white p-6 relative pb-24">
-                        <h1 className="text-2xl font-bold text-theme-main mb-6 tracking-tight flex items-center gap-2">我的旅遊回憶箱 🧳</h1>
+                        <CustomAlertConfirm />
+                        <div className="flex justify-between items-center mb-6">
+                            <h1 className="text-2xl font-bold text-theme-main tracking-tight flex items-center gap-2">我的旅遊回憶箱 🧳</h1>
+                        </div>
                         <div className="grid gap-4">
                             {trips.map(trip => (
                                 <div key={trip.id} onClick={() => { 
@@ -1686,14 +1979,25 @@
                                 </div>
                             ))}
                         </div>
-                        <button onClick={() => { setEditingItem(null); openModal(setIsTripModalOpen); }} className="fixed bottom-8 right-6 w-14 h-14 bg-theme-main text-white rounded-full shadow-xl shadow-sky-300/50 flex items-center justify-center active-scale z-50"><Icons.Plus/></button>
+                        
+                        <div className="fixed bottom-8 left-6 z-50">
+                            <button onClick={() => openModal(setIsGlobalLuggageOpen)} className="w-14 h-14 bg-white text-stone-500 border border-stone-200 rounded-full shadow-lg flex items-center justify-center active-scale z-50 hover:text-theme-main">
+                                <Icons.Suitcase />
+                            </button>
+                        </div>
+                        <div className="fixed bottom-8 right-6 z-50">
+                            <button onClick={() => { setEditingItem(null); openModal(setIsTripModalOpen); }} className="w-14 h-14 bg-theme-main text-white rounded-full shadow-xl shadow-sky-300/50 flex items-center justify-center active-scale z-50"><Icons.Plus/></button>
+                        </div>
+
                         {isTripModalOpen && <TripModal trip={editingItem} onClose={closeModal} onSave={handleSaveTrip} onDelete={handleDeleteTrip} />}
+                        {isGlobalLuggageOpen && <GlobalLuggageModal globalLuggage={globalLuggage} onClose={closeModal} onAdd={handleAddGlobalLuggage} onDelete={handleDeleteGlobalLuggage} />}
                     </div>
                 );
             }
 
             return (
                 <div className="min-h-screen pb-32 relative bg-white">
+                    <CustomAlertConfirm />
                     {previewImage && <div className="image-preview-overlay" onClick={() => window.history.back()}><ZoomableImage src={previewImage} /></div>}
                     
                     <header className="sticky top-0 z-40 glass-panel px-4 py-3 flex flex-col gap-3">
@@ -1713,7 +2017,7 @@
                                 <p className="text-xs text-stone-500 font-bold mt-1 ml-1">{currentDayInfo.date} ({currentDayInfo.weekDay})</p>
                              </div>
                             <div className="text-right">
-                                <button onClick={() => openModal(setShowAccounting)} className="text-sm text-white bg-theme-main px-3 py-1.5 rounded-full font-bold mb-1 shadow-lg active-scale">💰 分帳管家</button>
+                                <button onClick={() => openModal(setShowAccounting)} className="text-sm text-white bg-theme-main px-3 py-1.5 rounded-full font-bold mb-1 shadow-lg shadow-sky-300/40 active-scale">💰 分帳管家</button>
                             </div>
                         </div>
                         <div ref={daysContainerRef} className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 scroll-smooth">
@@ -1780,7 +2084,7 @@
                                                     <div className="flex -space-x-1 mt-1">
                                                         {payerIds.map(pid => {
                                                             const m = members.find(x => x.id === pid);
-                                                            return m ? <div key={pid} className={`w-5 h-5 ${m.color} rounded-full text-white flex items-center justify-center text-xs ring-1 ring-white`}>{m.emoji}</div> : null;
+                                                            return m ? <div key={pid} className={`w-5 h-5 ${m.color} rounded-full text-white flex items-center justify-center text-xs ring-1 ring-white shadow-sm`}>{m.emoji}</div> : null;
                                                         })}
                                                     </div>
                                                 </div>}
@@ -1811,13 +2115,13 @@
                         )}
 
                         {!currentTrip.isLocked && !reorderMode && !selectMode && (
-                            <button onClick={() => toggleMode(setSelectMode, true)} className={`w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all active-scale bg-white text-stone-400`}>
+                            <button onClick={() => toggleMode(setSelectMode, true)} className={`w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all active-scale bg-white text-stone-400 border border-stone-100`}>
                                 <Icons.ArrowLeftRight />
                             </button>
                         )}
 
                         {!currentTrip.isLocked && !selectMode && (
-                            <button onClick={() => { if(reorderMode) window.history.back(); else toggleMode(setReorderMode, true); }} className={`w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all active-scale ${reorderMode ? 'bg-orange-500 text-white' : 'bg-white text-stone-400'}`}>
+                            <button onClick={() => { if(reorderMode) window.history.back(); else toggleMode(setReorderMode, true); }} className={`w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all active-scale ${reorderMode ? 'bg-orange-500 text-white' : 'bg-white text-stone-400 border border-stone-100'}`}>
                                 {reorderMode ? <Icons.Check /> : <Icons.ArrowUpDown />}
                             </button>
                         )}
@@ -1835,7 +2139,6 @@
                         )}
                     </div>
 
-                    {isTripModalOpen && <TripModal trip={editingItem} onClose={closeModal} onSave={handleSaveTrip} onDelete={handleDeleteTrip} />}
                     {isItemModalOpen && <ItemModal item={editingItem} day={selectedDay} country={currentTrip.country} tripId={currentTrip.id} members={members} onClose={() => {closeModal(); setForcePayerSelectInItemModal(false);}} onSave={handleSaveItem} onDelete={handleDeleteItem} forcePayerSelect={forcePayerSelectInItemModal} isLocked={currentTrip.isLocked} />}
                     {isMoveModalOpen && <MoveDayModal days={tripDays} currentDay={selectedDay} count={selectedItemIds.size} onClose={closeModal} onMove={handleBatchMove} />}
                     {showAccounting && <AccountingModal itinerary={itinerary} shoppingList={shoppingList} currency={COUNTRIES[currentTrip.country].currency} onClose={closeModal} members={members} onEditItem={handleEditFromAccounting} rate={currentTrip.customRate || COUNTRIES[currentTrip.country].rate} onTogglePaid={togglePaidFromAccounting} accountingMember={accountingMember} setAccountingMember={handleAccountingMember} isLocked={currentTrip.isLocked} handleBatchSettle={handleBatchSettle} onRateChange={handleRateChange} />}
@@ -1844,7 +2147,10 @@
                     {isLootModalOpen && <LootModal members={members} activeMemberId={activeLootMember} setActiveMemberId={setActiveLootMember} lootList={itinerary.filter(i => i.category === 'loot' && i.payerIds?.includes(activeLootMember))} onClose={closeModal} onAdd={handleAddLoot} onEdit={(item)=> {setEditingItem(item); setForcePayerSelectInItemModal(false); openModal(setIsItemModalOpen);}} onDelete={(id) => handleDeleteItem(id, false)} setPreviewImage={handlePreviewImage} isLocked={currentTrip.isLocked} rate={currentTrip.customRate || COUNTRIES[currentTrip.country].rate} />}
                     
                     {isMemberModalOpen && <MemberModal members={members} onClose={closeModal} onAdd={handleAddMember} onDelete={handleDeleteMember} isLocked={currentTrip.isLocked} />}
-                    {isLuggageModalOpen && <LuggageModal luggageList={luggageList} members={members} onClose={closeModal} onAdd={handleAddLuggage} onToggle={handleToggleLuggage} onDelete={handleDeleteLuggage} isLocked={currentTrip.isLocked} />}
+                    
+                    {/* 行李清單與範本挑選 */}
+                    {isLuggageModalOpen && <LuggageModal luggageList={luggageList} members={members} onClose={closeModal} onAdd={handleAddLuggage} onToggle={handleToggleLuggage} onDelete={handleDeleteLuggage} isLocked={currentTrip.isLocked} openPicker={() => openModal(setIsLuggagePickerOpen)} />}
+                    {isLuggagePickerOpen && <LuggagePickerModal globalLuggage={globalLuggage} onClose={closeModal} onAdd={handleAddLuggage} />}
 
                     {isShoppingListOpen && (
                         <ShoppingListModal 
@@ -1889,7 +2195,6 @@
         root.render(<App />);
     </script>
     <script>
-        // 註冊 PWA Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
