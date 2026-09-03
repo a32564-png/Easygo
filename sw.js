@@ -1,4 +1,4 @@
-const CACHE_NAME = 'travel-box-v85'; // 升級到 v85 才能幫全體手機自動清除舊快取！
+const CACHE_NAME = 'travel-box-v86'; 
 const assetsToCache = [
   'index.html',
   'manifest.json',
