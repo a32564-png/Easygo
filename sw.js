@@ -1,4 +1,4 @@
-const CACHE_NAME = 'travel-box-v86'; 
+const CACHE_NAME = 'travel-box-v87'; 
 const assetsToCache = [
   'index.html',
   'manifest.json',

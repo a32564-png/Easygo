@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>我的旅遊回憶箱 (V86)</title>
+    <title>我的旅遊回憶箱 (V87)</title>
     
     <meta name="theme-color" content="#0ea5e9">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -667,12 +667,10 @@
         const ShoppingListModal = ({ shoppingList, members, country, tripId, onClose, onAdd, onEdit, onDelete, onCheck, onTogglePaid, setPreviewImage, onRestore, isLocked }) => {
             const [isGalleryMode, setIsGalleryMode] = useState(false); 
 
-            const sortedList = useMemo(() => {
-                const normal = shoppingList.filter(i => !i.isBought && i.type === 'normal').sort((a,b) => b.createdAt - a.createdAt);
-                const split = shoppingList.filter(i => i.type === 'split').sort((a,b) => (a.isPaid===b.isPaid)?0:a.isPaid?1:-1); 
-                const done = shoppingList.filter(i => i.isBought && i.type !== 'split').sort((a,b) => b.createdAt - a.createdAt);
-                return [...normal, ...split, ...done];
-            }, [shoppingList]);
+                      const sortedList = useMemo(() => {
+              const getTime = (x) => Number(x.createdAt || x.customOrder || 0);
+              return [...shoppingList].sort((a, b) => getTime(b) - getTime(a));
+          }, [shoppingList]);
 
             return (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
@@ -1070,13 +1068,21 @@
                     });
                 };
 
-                itinerary.forEach(i => processItem(i));
+                                itinerary.forEach(i => processItem(i));
                 shoppingList.forEach(s => {
                     if (s.type === 'split') processItem(s, true);
                 });
 
+                              Object.keys(res).forEach(pid => {
+                  res[pid].details.sort((a, b) => {
+                      const timeA = Number(a.createdAt || a.customOrder || 0);
+                      const timeB = Number(b.createdAt || b.customOrder || 0);
+                      return timeB - timeA;
+                  });
+              });
+
                 return {res, totalPendingForeign, totalPendingTWD};
-            }, [itinerary, shoppingList, members, currency]);
+                }, [itinerary, shoppingList, members, currency]);
 
             const settlementStats = useMemo(() => {
                 const data = {};
@@ -1662,10 +1668,12 @@
                     closeModal(); 
                 });
             };
-            const handleSaveItem = async (itemData) => {
+                        const handleSaveItem = async (itemData) => {
                 const ref = db.collection('trips_v14').doc(currentTrip.id).collection('items');
-                if (!itemData.customOrder) itemData.customOrder = Date.now();
-                
+                const now = Date.now();
+                if (!itemData.customOrder) itemData.customOrder = now;
+                if (!itemData.createdAt) itemData.createdAt = itemData.customOrder || now;
+
                 let newItemId = itemData.id;
                 if (itemData.id) {
                     await ref.doc(itemData.id).update(itemData);
@@ -1837,19 +1845,76 @@
                 await db.collection('global_luggage_templates_v1').doc(id).delete();
             }
 
+                        const [reorderBasket, setReorderBasket] = useState([]);
+
+            useEffect(() => {
+                setReorderBasket([]);
+            }, [reorderMode, selectedDay]);
+
+            const toggleBasketItem = (itemId) => {
+                setReorderBasket(prev => prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]);
+            };
+
+            const applyBatchOrder = async (newOrderedList) => {
+                if (currentTrip.isLocked) { alert("行程已鎖定"); return; }
+                const batch = db.batch();
+                const ref = db.collection('trips_v14').doc(currentTrip.id).collection('items');
+                const baseOrder = Date.now() - (newOrderedList.length * 1000);
+                newOrderedList.forEach((it, idx) => {
+                    const updates = { customOrder: baseOrder + (idx * 1000) };
+                    if (!it.createdAt && it.customOrder) updates.createdAt = it.customOrder;
+                    batch.update(ref.doc(it.id), updates);
+                });
+                setReorderBasket([]);
+                await batch.commit();
+            };
+
             const handleReorder = async (item, direction) => {
                 if (currentTrip.isLocked) { alert("行程已鎖定"); return; }
-                const items = [...currentDayItems];
-                const idx = items.findIndex(i => i.id === item.id); if (idx === -1) return;
-                let targetIdx = direction === 'up' ? idx - 1 : idx + 1;
-                if (targetIdx >= 0 && targetIdx < items.length) {
-                    const targetItem = items[targetIdx];
-                    const ref = db.collection('trips_v14').doc(currentTrip.id).collection('items');
-                    const itemOrder = item.customOrder || Date.now(); const targetOrder = targetItem.customOrder || Date.now();
-                    if (itemOrder === targetOrder) await ref.doc(targetItem.id).update({ customOrder: itemOrder + 1 });
-                    else { await ref.doc(targetItem.id).update({ customOrder: itemOrder }); await ref.doc(item.id).update({ customOrder: targetOrder }); }
+                const remaining = currentDayItems.filter(i => !reorderBasket.includes(i.id));
+                const idx = remaining.findIndex(i => i.id === item.id);
+                if (idx === -1) return;
+                const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+                if (targetIdx >= 0 && targetIdx < remaining.length) {
+                    const newList = [...remaining];
+                    const [moved] = newList.splice(idx, 1);
+                    newList.splice(targetIdx, 0, moved);
+                    const basketItems = reorderBasket.map(id => currentDayItems.find(i => i.id === id)).filter(Boolean);
+                    await applyBatchOrder([...newList, ...basketItems]);
                 }
             };
+
+            const handlePasteAtTop = async () => {
+                const basketItems = reorderBasket.map(id => currentDayItems.find(i => i.id === id)).filter(Boolean);
+                const remaining = currentDayItems.filter(i => !reorderBasket.includes(i.id));
+                await applyBatchOrder([...basketItems, ...remaining]);
+            };
+
+            const handlePasteAfter = async (targetItem) => {
+                const basketItems = reorderBasket.map(id => currentDayItems.find(i => i.id === id)).filter(Boolean);
+                const remaining = currentDayItems.filter(i => !reorderBasket.includes(i.id));
+                const idx = remaining.findIndex(i => i.id === targetItem.id);
+                if (idx === -1) return;
+                const newList = [...remaining.slice(0, idx + 1), ...basketItems, ...remaining.slice(idx + 1)];
+                await applyBatchOrder(newList);
+            };
+
+            const handleSwapWith = async (targetItem) => {
+                const basketItems = reorderBasket.map(id => currentDayItems.find(i => i.id === id)).filter(Boolean);
+                if (basketItems.length === 0) return;
+                const newList = [];
+                currentDayItems.forEach(it => {
+                    if (it.id === targetItem.id) {
+                        newList.push(...basketItems);
+                    } else if (it.id === basketItems[0].id) {
+                        newList.push(targetItem);
+                    } else if (!reorderBasket.includes(it.id)) {
+                        newList.push(it);
+                    }
+                });
+                await applyBatchOrder(newList);
+            };
+
             const toggleSelect = (id) => { const newSet = new Set(selectedItemIds); if (newSet.has(id)) newSet.delete(id); else newSet.add(id); setSelectedItemIds(newSet); };
             const handleBatchMove = async (targetDay, mode) => {
                 if (selectedItemIds.size === 0) return;
@@ -2027,12 +2092,61 @@
                         </div>
                     </header>
 
-                    <main className="px-4 py-5 space-y-3 min-h-[50vh]" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+                                        <main className={`px-4 py-5 space-y-3 min-h-[50vh] ${reorderMode ? 'pb-48' : ''}`} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+                        {reorderMode && !currentTrip.isLocked && (
+                            <div className="bg-orange-50 border border-orange-200 rounded-2xl p-3 text-xs text-orange-700 font-bold flex flex-col gap-2 shadow-sm">
+                                <div className="flex items-center justify-between">
+                                    <span>⚡ 極簡排序模式：點擊卡片可「抽起」至下方暫存區（可多選）</span>
+                                </div>
+                                {reorderBasket.length > 0 && (
+                                    <button onClick={handlePasteAtTop} className="w-full py-2 bg-orange-500 text-white rounded-xl font-bold shadow active:scale-95 transition-transform">
+                                        ⬆️ 將暫存的 {reorderBasket.length} 張貼到最頂端 (第 1 位)
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
                         {currentDayItems.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20 opacity-50">
                                 <span className="text-6xl grayscale opacity-50">{currentTrip.icon}</span>
                                 <p className="mt-4 text-stone-400 text-sm font-medium">Day {selectedDay} 還沒有行程</p>
                                 <p className="text-xs text-stone-300 mt-2">左右滑動切換天數</p>
+                            </div>
+                        ) : reorderMode ? (
+                            <div className="space-y-2">
+                                {currentDayItems.filter(i => !reorderBasket.includes(i.id)).map((item) => {
+                                    const originalIdx = currentDayItems.findIndex(x => x.id === item.id) + 1;
+                                    const displayTime = item.category === 'transport' ? (item.departureTime || '--:--') : item.category === 'hotel' ? (item.checkInTime || '15:00') : (item.time || '');
+                                    return (
+                                        <div key={item.id} onClick={() => toggleBasketItem(item.id)} className="bg-white px-3 py-2.5 rounded-xl shadow-sm border border-orange-200 flex items-center gap-2 active:scale-[0.99] cursor-pointer">
+                                            <span className="text-[11px] font-extrabold bg-orange-100 text-orange-600 px-2 py-1 rounded-lg shrink-0">#{originalIdx}</span>
+                                            <span className="text-xs font-bold text-theme-main w-11 shrink-0 text-center">{displayTime || '---'}</span>
+                                            <span className="text-base shrink-0">
+                                                {item.category === 'food' ? '🍛' : item.category === 'sight' ? '🏯' : item.category === 'shop' ? '🛍' : item.category === 'transport' ? '🚌' : item.category === 'hotel' ? '🏢' : '✨️'}
+                                            </span>
+                                            <span className="font-bold text-stone-800 text-sm truncate flex-1">{item.title}</span>
+                                            
+                                            {reorderBasket.length > 0 ? (
+                                                <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                                                    <button onClick={() => handleSwapWith(item)} className="px-2 py-1.5 bg-purple-100 text-purple-700 rounded-lg text-xs font-bold active:scale-95">
+                                                        🔄 對調
+                                                    </button>
+                                                    <button onClick={() => handlePasteAfter(item)} className="px-2 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-bold shadow-sm active:scale-95">
+                                                        ⤵️ 插在下方
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                                                    <button onClick={() => toggleBasketItem(item.id)} className="px-2 py-1 bg-stone-100 text-stone-600 rounded-lg text-[11px] font-bold active:scale-95">
+                                                        📦 抽起
+                                                    </button>
+                                                    <button onClick={() => handleReorder(item, 'up')} className="p-1.5 bg-stone-100 rounded-lg text-stone-500 active:bg-stone-200"><Icons.ChevronUp/></button>
+                                                    <button onClick={() => handleReorder(item, 'down')} className="p-1.5 bg-stone-100 rounded-lg text-stone-500 active:bg-stone-200"><Icons.ChevronDown/></button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         ) : (
                             currentDayItems.map(item => {
@@ -2048,7 +2162,7 @@
                                         setEditingItem(item); setForcePayerSelectInItemModal(false); openModal(setIsItemModalOpen); 
                                     } 
                                 }}
-                                    className={`bg-white p-4 rounded-2xl shadow-sm border border-stone-100 transition-all active:scale-[0.99] cursor-pointer relative overflow-hidden item-card-gradient ${isSelected ? 'border-theme-main ring-2 ring-sky-100 bg-sky-50' : ''} ${reorderMode ? 'scale-95 border-orange-200' : ''}`}
+                                    className={`bg-white p-4 rounded-2xl shadow-sm border border-stone-100 transition-all active:scale-[0.99] cursor-pointer relative overflow-hidden item-card-gradient ${isSelected ? 'border-theme-main ring-2 ring-sky-100 bg-sky-50' : ''}`}
                                 >
                                     <div className="flex gap-4 relative z-10 pointer-events-none">
                                         {selectMode && (<div className="flex items-center justify-center pr-1">{isSelected ? <div className="text-theme-main"><Icons.CheckCircle/></div> : <div className="text-stone-300"><Icons.Circle/></div>}</div>)}
@@ -2091,13 +2205,35 @@
                                             </div>
                                             {item.fileUrl && <div className="mt-2 pointer-events-auto">{isImage ? (<div className="w-full h-32 bg-stone-100 rounded-lg overflow-hidden border border-stone-200 cursor-pointer relative" onClick={(e) => { e.stopPropagation(); handlePreviewImage(item.fileUrl); }}><img src={item.fileUrl} className="w-full h-full object-cover" alt="附件" /><div className="absolute bottom-1 right-1 bg-black/50 text-white text-[10px] px-1.5 rounded">🔍 點擊放大</div></div>) : (<a href={item.fileUrl} target="_blank" onClick={e => e.stopPropagation()} className="inline-flex gap-1 text-[10px] bg-sky-50 text-theme-main px-2 py-1 rounded-full border border-sky-100 font-bold active-scale"><Icons.ExternalLink/> 查看附件</a>)}</div>}
                                         </div>
-                                        {reorderMode && !currentTrip.isLocked && <div className="flex flex-col justify-center gap-1 pl-2 border-l border-stone-100 pointer-events-auto"><button onClick={(e) => { e.stopPropagation(); handleReorder(item, 'up'); }} className="p-1.5 bg-stone-100 rounded-full text-stone-500 active:bg-stone-200"><Icons.ChevronUp/></button><button onClick={(e) => { e.stopPropagation(); handleReorder(item, 'down'); }} className="p-1.5 bg-stone-100 rounded-full text-stone-500 active:bg-stone-200"><Icons.ChevronDown/></button></div>}
                                     </div>
                                 </div>
                                 );
                             })
                         )}
                     </main>
+
+                    {reorderMode && reorderBasket.length > 0 && (
+                        <div className="fixed bottom-24 left-4 right-4 z-50 bg-stone-900/95 text-white p-3.5 rounded-2xl shadow-2xl backdrop-blur-md border border-stone-700">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-xs font-bold text-orange-400">📦 移動暫存抽屜（已抽起 {reorderBasket.length} 張，請點選上方列表目標位置）</span>
+                                <button onClick={() => setReorderBasket([])} className="text-[11px] bg-stone-700 hover:bg-stone-600 px-2.5 py-1 rounded-lg font-bold">全部放回</button>
+                            </div>
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                                {reorderBasket.map((id, index) => {
+                                    const it = currentDayItems.find(x => x.id === id);
+                                    if (!it) return null;
+                                    return (
+                                        <div key={id} onClick={() => toggleBasketItem(id)} className="flex-shrink-0 bg-stone-800 border border-stone-600 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95">
+                                            <span className="bg-orange-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[10px]">{index + 1}</span>
+                                            <span className="max-w-[110px] truncate">{it.title}</span>
+                                            <span className="text-stone-400 ml-1">✕</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
 
                     <div className="fixed bottom-8 left-6 z-50">
                         <button onClick={() => openModal(setIsLootModalOpen)} className="w-14 h-14 bg-pink-500 text-white rounded-full shadow-xl shadow-pink-300/50 flex items-center justify-center active-scale border-4 border-white">
@@ -2144,7 +2280,8 @@
                     {showAccounting && <AccountingModal itinerary={itinerary} shoppingList={shoppingList} currency={COUNTRIES[currentTrip.country].currency} onClose={closeModal} members={members} onEditItem={handleEditFromAccounting} rate={currentTrip.customRate || COUNTRIES[currentTrip.country].rate} onTogglePaid={togglePaidFromAccounting} accountingMember={accountingMember} setAccountingMember={handleAccountingMember} isLocked={currentTrip.isLocked} handleBatchSettle={handleBatchSettle} onRateChange={handleRateChange} />}
                     {isLockModalOpen && <LockModal isLocked={currentTrip.isLocked} onClose={closeModal} onConfirm={handleLockTrip} />}
                     {isExportModalOpen && <ExportModal itinerary={itinerary} tripName={currentTrip.name} onClose={closeModal} />}
-                    {isLootModalOpen && <LootModal members={members} activeMemberId={activeLootMember} setActiveMemberId={setActiveLootMember} lootList={itinerary.filter(i => i.category === 'loot' && i.payerIds?.includes(activeLootMember))} onClose={closeModal} onAdd={handleAddLoot} onEdit={(item)=> {setEditingItem(item); setForcePayerSelectInItemModal(false); openModal(setIsItemModalOpen);}} onDelete={(id) => handleDeleteItem(id, false)} setPreviewImage={handlePreviewImage} isLocked={currentTrip.isLocked} rate={currentTrip.customRate || COUNTRIES[currentTrip.country].rate} />}
+                    {isLootModalOpen && <LootModal members={members} activeMemberId={activeLootMember} setActiveMemberId={setActiveLootMember} lootList={itinerary.filter(i => i.category === 'loot' && i.payerIds?.includes(activeLootMember)).sort((a, b) => (b.createdAt || b.customOrder || 0) - (a.createdAt || a.customOrder || 0))} onClose={closeModal} onAdd={handleAddLoot} onEdit={(item)=> {setEditingItem(item); setForcePayerSelectInItemModal(false); openModal(setIsItemModalOpen);}} onDelete={(id) => handleDeleteItem(id, false)} setPreviewImage={handlePreviewImage} isLocked={currentTrip.isLocked} rate={currentTrip.customRate || COUNTRIES[currentTrip.country].rate} />}
+
                     
                     {isMemberModalOpen && <MemberModal members={members} onClose={closeModal} onAdd={handleAddMember} onDelete={handleDeleteMember} isLocked={currentTrip.isLocked} />}
                     
@@ -2194,12 +2331,10 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
-    <script>
+        <script>
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('Service Worker 註冊成功', reg))
-                    .catch(err => console.log('Service Worker 註冊失敗', err));
+            navigator.serviceWorker.getRegistrations().then(regs => {
+                for(let reg of regs) reg.unregister();
             });
         }
     </script>
