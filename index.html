@@ -1247,25 +1247,9 @@
                                         </button>
                                     )}
                                 </div>
-                                <div className="bg-white p-4 rounded-3xl mb-4 text-center border border-stone-100 shadow-sm relative overflow-hidden">
-                                    <div className="absolute top-2 right-2 text-3xl opacity-20">{accountingMember.emoji}</div>
-                                    <h2 className="font-bold text-lg text-stone-700 mb-1">{accountingMember.name} 的墊付狀態</h2>
-                                    <div className="flex flex-col items-center justify-center gap-1">
-                                        {Object.keys(stats.res[accountingMember.id].totals).length === 0 ? (
-                                            <span className="text-sm text-stone-400 font-bold">目前無墊付項目</span>
-                                        ) : (
-                                            Object.entries(stats.res[accountingMember.id].totals).map(([curr, amt]) => (
-                                                <div key={curr} className="font-extrabold text-theme-main text-2xl leading-tight">
-                                                    {curr} {Math.round(amt).toLocaleString()}
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </div> 
-
-                                {/* 帳務分析圓餅圖區塊 */}
+                                                                {/* 帳務分析圓餅圖區塊 (移至上方) */}
                                 {memberExpenseAnalysis.total > 0 && (
-                                    <div className="bg-white p-4 rounded-3xl mb-5 shadow-sm border border-stone-100">
+                                    <div className="bg-white p-4 rounded-3xl mb-4 shadow-sm border border-stone-100">
                                         <h3 className="text-xs font-bold text-stone-400 mb-3 text-center tracking-wider">個人總花費佔比分析 (TWD)</h3>
                                         <div className="flex items-center gap-5">
                                             <div className="relative w-24 h-24 rounded-full shadow-sm shrink-0 flex items-center justify-center" style={{ background: memberExpenseAnalysis.conicGradient }}>
@@ -1288,6 +1272,30 @@
                                         </div>
                                     </div>
                                 )}
+
+                                {/* 個人剩餘墊付狀態 (移至下方並改顯示未結清金額) */}
+                                <div className="bg-white p-4 rounded-3xl mb-5 text-center border border-stone-100 shadow-sm relative overflow-hidden">
+                                    <div className="absolute top-2 right-2 text-3xl opacity-20">{accountingMember.emoji}</div>
+                                    <h2 className="font-bold text-lg text-stone-700 mb-1">{accountingMember.name} 的剩餘墊付金額</h2>
+                                    <div className="flex flex-col items-center justify-center gap-1">
+                                        {stats.res[accountingMember.id].pendingTotal === 0 ? (
+                                            <span className="text-sm bg-green-100 text-green-600 px-3 py-1 rounded-full font-bold mt-1">目前已全數結清 🎉</span>
+                                        ) : (
+                                            <>
+                                                {stats.res[accountingMember.id].pendingForeign > 0 && (
+                                                    <div className="font-extrabold text-theme-main text-2xl leading-tight">
+                                                        {currency} {Math.round(stats.res[accountingMember.id].pendingForeign).toLocaleString()}
+                                                    </div>
+                                                )}
+                                                {stats.res[accountingMember.id].pendingTWD > 0 && (
+                                                    <div className="font-extrabold text-theme-main text-2xl leading-tight">
+                                                        TWD {Math.round(stats.res[accountingMember.id].pendingTWD).toLocaleString()}
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
 
                                 <h3 className="text-xs font-bold text-stone-400 mb-2 pl-2 tracking-wider">經手帳目明細</h3>
                                 <div className="space-y-2 pb-4"> 
